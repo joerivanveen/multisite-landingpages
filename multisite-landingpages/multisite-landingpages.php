@@ -33,6 +33,14 @@ class ruigehond011
      */
     public function __construct()
     {
+        // get the slug we are using for this request, as far as the plugin is concerned
+        global $ruigehond011;
+        if (isset($ruigehond011)) {
+            $this->slug = $ruigehond011->slug;
+        } else { // use the regular slug
+            $this->slug = \trim($_SERVER['REQUEST_URI'], '/');
+        }
+        // set the options for the current subsite
         $this->options = get_option('ruigehond011');
         if (isset($this->options)) {
             $this->use_canonical = isset($this->options['use_canonical']) and (true === $this->options['use_canonical']);
@@ -509,12 +517,13 @@ class ruigehond011
             }
         }
         // check if the table already exists, if not create it
-        global $wpdb; // use base prefix to make a table for all the blogs
+        global $wpdb; // use base prefix to make a table shared by all the blogs
         $table_name = $wpdb->base_prefix . 'ruigehond011_landingpage';
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
             $sql = 'CREATE TABLE ' . $table_name . ' (
-						landingpage_id BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-						domain VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' NOT NULL,
+						domain VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' NOT NULL PRIMARY KEY,
+						blog_id BIGINT NOT NULL,
+						site_id BIGINT NOT NULL,
 						post_name VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\',
 						date_created TIMESTAMP NOT NULL DEFAULT NOW(),
 						approved TINYINT NOT NULL DEFAULT 0)
@@ -535,11 +544,18 @@ function ruigehond011_deactivate()
     // deactivate can be done per site
     // remove settings
     delete_option('ruigehond011');
+    // remove entries in the landingpage table as well
+
 }
 
 function ruigehond011_uninstall()
 {
     // uninstall is always a network remove, so you can safely remove the proprietary table here
+    global $wpdb; // use base prefix to access the table shared by all the blogs
+    $table_name = $wpdb->base_prefix . 'ruigehond011_landingpage';
+    if ($wpdb->get_var('SHOW TABLES LIKE \'' . $table_name . '\';') === $table_name) {
+        $wpdb->query('DROP TABLE ' . $table_name . ';');
+    }
 }
 
 function ruigehond011_display_warning()
