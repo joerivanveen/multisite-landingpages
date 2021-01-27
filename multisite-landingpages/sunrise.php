@@ -1,29 +1,44 @@
 <?php
 
 namespace ruigehond011;
+/**
+ * configurable variable $ruigehond011_minute: after entering a landingpage domain the site must be visited
+ * within this number of minutes to validate the domain, integers only.
+ */
+global $ruigehond011_minute;
+$ruigehond011_minute = 10;
+// call the function that selects blog based on the domain
 sunrise();
 // multi site setup info used:
 // https://wordpress.stackexchange.com/a/126176
 
+/**
+ * look into ruigehond011_landingpage table to set the multisite environment up for the correct blog for this visitor
+ * when not found in the table, nothing is changed, let WordPress handle it further
+ * @returns void
+ * @since 0.1.0
+ */
 function sunrise()
 {
-// get the domain
+    global $wpdb, $ruigehond011_minute;
+    // get the domain
     $domain = \strtolower(\stripslashes($_SERVER['HTTP_HOST']));
-// remove the port number if present
+    // remove the port number if present
     if (\false !== \strpos($domain, ':')) {
         $domain = \explode(':', $domain)[0];
     }
 
-// if the domain is in the landingpage table, setup the global site and blog name for ms-settings.php
-// else do nothing, it will be setup like the multisite works normally
-    global $wpdb;
+    // if the domain is in the landingpage table, setup the global site and blog name for ms-settings.php
+    // else do nothing, it will be setup like this multisite works normally
     $base_prefix = $wpdb->base_prefix;
-    $table_name = $base_prefix . 'ruigehond011_landingpage';
-    $rows = $wpdb->get_results('SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, rh.site_id, rh.blog_id, rh.post_name, rh.date_created > DATE_SUB(now(), INTERVAL 10 MINUTE) AS is_new, rh.approved FROM ' .
-        $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id WHERE rh.domain = \'' . \addslashes($domain) . '\';');
+    $table_name = $base_prefix . 'ruigehond011_landingpages';
+    $rows = $wpdb->get_results('SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, rh.blog_id, rh.post_name, rh.date_created > DATE_SUB(now(), INTERVAL ' .
+        $ruigehond011_minute . ' MINUTE) AS is_new, rh.approved FROM ' .
+        $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id WHERE rh.domain = \'' .
+        \addslashes($domain) . '\';');
 
-//var_dump($wpdb->last_query);
-//die();
+//    var_dump($wpdb->last_query);
+//    die();
 
     if (count($rows) === 1) {
         $row = $rows[0];
@@ -43,10 +58,8 @@ function sunrise()
             }
         }
         // set the required global object for ruigehond011 subsite part of the plugin
-        global $ruigehond011;
-        $ruigehond011 = new \stdClass;
-        $ruigehond011->canonical = $row->landing_domain;
-        $ruigehond011->slug = $row->post_name;
+        global $ruigehond011_slug;
+        $ruigehond011_slug = $row->post_name;
         // set the HTTP_HOST to the domain of this blog you want, let WordPress handle it further
         $_SERVER['HTTP_HOST'] = $row->multisite_domain;
         $row = \null;

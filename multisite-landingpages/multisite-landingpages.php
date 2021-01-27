@@ -11,11 +11,11 @@ Text Domain: multisite-landingpages
 Domain Path: /languages/
 */
 defined('ABSPATH') or die();
-// This is plugin nr. 7 by Ruige hond. It identifies as: ruigehond011.
+// This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
 Define('ruigehond011_VERSION', '0.1.0');
 // Register hooks for plugin management, functions are at the bottom of this file.
 register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
-register_deactivation_hook(__FILE__, 'ruigehond011_deactivate');
+register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
 // Startup the plugin
 add_action('init', array(new ruigehond011(), 'initialize'));
@@ -23,8 +23,8 @@ add_action('init', array(new ruigehond011(), 'initialize'));
 //
 class ruigehond011
 {
-    private $options, $options_changed, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
-    private $slug, $locale, $post_types = array(); // cached values
+    private $options, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
+    private $slug, $minute, $wpdb, $blog_id, $table_name, $locale, $post_types = array(); // cached values
 
     /**
      * ruigehond011 constructor
@@ -33,13 +33,17 @@ class ruigehond011
      */
     public function __construct()
     {
+        // cache some global vars for this instance
+        global $ruigehond011_slug, $ruigehond011_minute, $wpdb, $blog_id;
+        // use base prefix to make a table shared by all the blogs
+        $this->table_name = $wpdb->base_prefix . 'ruigehond011_landingpages';
+        $this->wpdb = $wpdb;
+        $this->blog_id = isset($blog_id) ? \intval($blog_id) : \null;
         // get the slug we are using for this request, as far as the plugin is concerned
-        global $ruigehond011;
-        if (isset($ruigehond011)) {
-            $this->slug = $ruigehond011->slug;
-        } else { // use the regular slug
-            $this->slug = \trim($_SERVER['REQUEST_URI'], '/');
-        }
+        // set the slug to the value found in sunrise.php, or to the regular slug if none was found
+        $this->slug = (isset($ruigehond011_slug)) ? $ruigehond011_slug : \trim($_SERVER['REQUEST_URI'], '/');
+        // set the minute to minute defined in sunrise.php, default to 10
+        $this->minute = (isset($ruigehond011_minute)) ? \intval($ruigehond011_minute) : 10;
         // set the options for the current subsite
         $this->options = get_option('ruigehond011');
         if (isset($this->options)) {
@@ -51,25 +55,21 @@ class ruigehond011
                     $this->canonical_prefix = 'http://';
                 }
                 if (isset($this->options['use_www']) and (true === $this->options['use_www'])) $this->canonical_prefix .= 'www.';
+                // load the canonicals
+                $this->canonicals = array();
+                if (isset($this->blog_id)) {
+                    $rows = $this->wpdb->get_results('SELECT domain, post_name FROM ' . $this->table_name .
+                        ' WHERE blog_id = ' . $this->blog_id . ' AND approved = 1;');
+                    foreach ($rows as $index => $row) {
+                        $this->canonicals[$row->post_name] = $row->domain;
+                    }
+                    $rows = \null;
+                }
             }
             $this->remove_sitename_from_title = isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']);
         }
         // https://wordpress.stackexchange.com/a/89965
         //if (isset($this->locale)) add_filter('locale', array($this, 'getLocale'), 1, 1);
-    }
-
-    /**
-     * Makes sure options are saved at the end of the request when they changed since the beginning
-     * @since 1.0.0
-     * @since 1.3.0: generate notice upon fail
-     */
-    public function __shutdown()
-    {
-        if ($this->options_changed === true) {
-            if (false === update_option('ruigehond011', $this->options, true)) {
-                trigger_error(__('Failed saving options (multisite landingpages)', 'multisite-landingpages'), E_USER_NOTICE);
-            }
-        }
     }
 
     /**
@@ -86,6 +86,7 @@ class ruigehond011
             add_action('admin_init', array($this, 'settings'));
             add_action('admin_menu', array($this, 'menuitem')); // necessary to have the page accessible to user
             add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'settingslink')); // settings link on plugins page
+            if ($this->onSettingsPage()) ruigehond011_display_warning();
         } else {
             // original
             add_action('parse_request', array($this, 'get')); // passes WP_Query object
@@ -186,8 +187,8 @@ class ruigehond011
      */
     public function fixUrl($url) //, and $post if arguments is set to 2 in stead of one in add_filter (during initialize)
     {
-        if ($index = strrpos($url, '/', -2)) { // skip over the trailing slash
-            $proposed_slug = str_replace('/', '', str_replace('www-', '', substr($url, $index + 1)));
+        if ($index = \strrpos($url, '/', -2)) { // skip over the trailing slash
+            $proposed_slug = \str_replace('/', '', \str_replace('www-', '', \substr($url, $index + 1)));
             if (isset($this->canonicals[$proposed_slug])) {
                 $url = $this->canonical_prefix . $this->canonicals[$proposed_slug];
             }
@@ -196,78 +197,6 @@ class ruigehond011
         return $url;
     }
 
-    /**
-     * sets $this->slug based on the domain for which we need to find a page
-     * registers the current page if applicable
-     * also updates $this->locale when requested
-     */
-    private function setSlugAndLocaleFromDomainAndRegister()
-    {
-        if (isset($this->slug)) return;
-        $domain = $_SERVER['HTTP_HOST'];
-        // strip www
-        if (strpos($domain, 'www.') === 0) $domain = substr($domain, 4);
-        // make slug by replacing dot with hyphen
-        $slug = str_replace('.', '-', $domain);
-        /**
-         * And register here if applicable:
-         */
-        if ($this->use_canonical) {
-            if (!isset($this->canonicals[$slug])) { // if not already in the options table
-                $this->options['canonicals'][$slug] = $domain; // remember original domain for slug
-                $this->options_changed = true; // flag for update (in __shutdown)
-                $this->canonicals[$slug] = $domain; // also remember for current request
-            }
-        }
-        $this->slug = $slug;
-        // @since 1.3.0
-        if (isset($this->options['locales']) and ($locales = $this->options['locales'])) {
-            if (isset($locales[$slug])) $this->locale = $locales[$slug];
-        }
-    }
-
-    /**
-     * Expects a string where each name=>value pair is on a new row and uses = as separator, so:
-     * name-one=value-one
-     * etc. keys and values are trimmed and returned as a proper named array / associative array
-     * @param $associative_array_as_string
-     * @return array
-     * @since 1.3.0
-     */
-    private function stringToArray($associative_array_as_string)
-    {
-        if (is_array($associative_array_as_string)) return $associative_array_as_string;
-        $arr = explode("\n", $associative_array_as_string);
-        if (count($arr) > 0) {
-            $ass = array();
-            foreach ($arr as $index => $str) {
-                $val = explode('=', $str);
-                if (count($val) === 2) {
-                    $ass[trim($val[0])] = trim($val[1]);
-                }
-            }
-
-            return $ass;
-        } else {
-            return array();
-        }
-    }
-
-    /**
-     * the reverse of stringToArray()
-     * @param $associative_array array to be converted to string
-     * @return string formatted for textarea
-     * @since 1.3.0
-     */
-    private function arrayToString($associative_array)
-    {
-        $return = array();
-        foreach ($associative_array as $name => $value) {
-            $return[] = $name . ' = ' . $value;
-        }
-
-        return implode("\n", $return);
-    }
 
     /**
      * @param $slug
@@ -326,44 +255,116 @@ class ruigehond011
          * - the function that will validate the options, valid options are automatically saved by WP
          */
         register_setting('ruigehond011', 'ruigehond011', array($this, 'settings_validate'));
-        // register a new section in the page
+        // register the first section
         add_settings_section(
-            'each_domain_a_page_settings', // section id
-            __('Set your options', 'multisite-landingpages'), // title
+            'multisite_landingpages_domains',
+            __('Domains and slugs', 'multisite-landingpages'),
             function () {
                 echo '<p>';
                 echo __('This plugin matches a slug to the domain used to access your Wordpress installation and shows that page or post.', 'multisite-landingpages');
                 echo '<br/><strong>';
                 echo __('The rest of your site keeps working as usual.', 'multisite-landingpages');
-                echo '</strong><br/><br/>';
-                /* TRANSLATORS: arguments here are '.', '-', 'example-com', 'www.example.com', 'www' */
-                echo sprintf(__('Typing your slug: replace %1$s (dot) with %2$s (hyphen). A page or post with slug %3$s would show for the domain %4$s (with or without the %5$s).', 'multisite-landingpages'),
-                    '<strong>.</strong>', '<strong>-</strong>', '<strong>example-com</strong>', '<strong>www.example.com</strong>', 'www');
-                echo ' <em>';
-                echo __('Of course the domain must reach your Wordpress installation as well.', 'multisite-landingpages');
-                echo '</em></p><h2>Canonicals?</h2><p><strong>';
-                echo __('This plugin works out of the box.', 'multisite-landingpages');
-                echo '</strong><br/>';
-                echo __('However if you want your landing pages to correctly identify with the domain, you should activate the canonicals option below.', 'multisite-landingpages');
+                echo '</strong></p>';
+            },
+            'ruigehond011'
+        );
+        // actual landing pages here
+        $rows = $this->wpdb->get_results('SELECT domain, post_name, date_created > DATE_SUB(now(), INTERVAL ' .
+            $this->minute . ' MINUTE) AS is_new, approved FROM ' . $this->table_name . ' WHERE blog_id = ' .
+            $this->blog_id . ' ORDER BY domain;');
+        foreach ($rows as $index => $row) {
+            $domain = $row->domain;
+            $slug = $row->post_name;
+            add_settings_field(
+                'ruigehond011_' . $domain,
+                $domain, // title
+                function ($args) {
+                    $domain = $args['domain'];
+                    $slug = $args['slug'];
+                    echo '<input type="text" name="ruigehond011[';
+                    echo $domain;
+                    echo ']" value="';
+                    echo $slug;
+                    echo '"/> ';
+                    if ($args['approved']) {
+                        echo '<span class="notice-success notice">';
+                        echo __('validated', 'multisite-landingpages');
+                        echo '</span>';
+                    } elseif ($args['is_new']) {
+                        echo '<span class="notice-warning notice">';
+                        echo __('visit your site with this domain to validate', 'multisite-landingpages');
+                        echo '</span>';
+                    } else {
+                        echo '<span class="notice-error notice">';
+                        echo __('expired', 'multisite-landingpages');
+                        echo '</span>';
+                    }
+                    if ($args['in_canonicals']) {
+                        echo ' (';
+                        echo __('slug loaded in canonicals', 'multisite-landingpages');
+                        echo ')';
+                    }
+                    // todo delete button
+                    echo ' <input type="submit" value="×" name="ruigehond011[delete]"/>';
+                },
+                'ruigehond011',
+                'multisite_landingpages_domains',
+                [
+                    'slug' => $slug,
+                    'is_new' => $row->is_new,
+                    'approved' => $row->approved,
+                    'in_canonicals' => isset($this->canonicals[$slug]),
+                    'domain' => $domain,
+                    'class' => 'ruigehond_row',
+                ]
+            );
+        }
+        // new landing page:
+        add_settings_section(
+            'multisite_landingpages_new',
+            __('New landingpage', 'multisite-landingpages'),
+            function () {
+                echo '<p>';
+                echo __('In the DNS settings of your desired domain point it at this WordPress installation.', 'multisite-landingpages');
+                echo ' ';
+                echo __('Fill in the domain name (without protocol or irrelevant subdomains) below to add it.', 'multisite-landingpages');
+                echo ' ';
+                echo __('The domain must be reachable from this WordPress installation, allow some time for the DNS settings to propagate.', 'multisite-landingpages');
+                echo '</p>';
+            },
+            'ruigehond011'
+        );
+        // add the necessary field
+        add_settings_field(
+            'ruigehond011_new',
+            'Domain (without www)', // title
+            function ($args) {
+                echo '<input type="text" name="ruigehond011[domain_new]"/>';
+            },
+            'ruigehond011',
+            'multisite_landingpages_new',
+            [
+                'class' => 'ruigehond_row',
+            ]
+        );
+        // register a new section in the page
+        add_settings_section(
+            'multisite_landingpages_settings', // section id
+            __('General options', 'multisite-landingpages'), // title
+            function () {
+                echo '<p>';
+                echo __('If you want your landing pages to correctly identify with the domain, you should activate the canonicals option below.', 'multisite-landingpages');
                 echo ' ';
                 echo __('This makes the plugin slightly slower, it will however return the domain in most cases.', 'multisite-landingpages');
                 echo ' ';
                 echo __('Each canonical is activated by visiting your site once using that domain.', 'multisite-landingpages');
                 echo ' ';
                 echo __('SEO plugins like Yoast may or may not interfere with this. If they do, you can probably set the desired canonical for your landing page there.', 'multisite-landingpages');
-                echo '</p><h2>Locales?</h2><p>';
-                echo sprintf(__('If the default language of this installation is ‘%s’, you can use different locales for your slugs.', 'multisite-landingpages'), 'English (United States)');
-                echo ' ';
-                echo __('Otherwise this is not recommended since translation files will already be loaded and using a different locale will involve loading them again.', 'multisite-landingpages');
-                echo ' ';
-                echo __('Use valid WordPress locales with an underscore, e.g. nl_NL, and make sure they are available in your installation.', 'multisite-landingpages');
-                echo ' <em>';
-                echo __('Not all locales are supported by all themes.', 'multisite-landingpages');
-                echo '</em></p>';
+                echo '</p>';
             }, //callback
             'ruigehond011' // page
         );
-        // add the settings (checkboxes)
+        // add the checkboxes
         foreach (array(
                      'use_canonical' => __('Use domains as canonical url', 'multisite-landingpages'),
                      'use_www' => __('Canonicals must include www', 'multisite-landingpages'),
@@ -390,7 +391,7 @@ class ruigehond011
                     echo '</label><br/>';
                 },
                 'ruigehond011',
-                'each_domain_a_page_settings',
+                'multisite_landingpages_settings',
                 [
                     'label_for' => $short_text,
                     'class' => 'ruigehond_row',
@@ -399,9 +400,6 @@ class ruigehond011
                 ]
             );
         }
-        // blogmeta options holding domainname->slug, and the plugin needs to figure out what type of post the slug actually is
-        // use wpdb->base_prefix for the table name, that way it is shared between all subsites...
-        // blog_id, domain, slug, approved, date_created
         // display warning about htaccess conditionally
         if ($this->onSettingsPage()) { // show warning only on own options page
             if (isset($this->options['htaccess_warning'])) {
@@ -436,11 +434,28 @@ class ruigehond011
                 case 'remove_sitename':
                     $options[$key] = ($value === '1' or $value === true);
                     break;
-                case 'locales':
-                    $options['locales'] = $this->stringToArray($value);
+                case 'domain_new':
+                    if ($value === '') break; // empty values don’t need to be processed
+                    // test domain utf-8 characters: όνομα.gr
+                    // todo test this with the intl extension of php enabled...
+                    if (\function_exists('idn_to_ascii')) {
+                        $value = \idn_to_ascii($value, IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46);
+                    }
+                    if (\dns_check_record($value, 'A') or \dns_check_record($value, 'AAAA')) {
+                        // if the domain exists, insert it in the landingpage table
+                        $site_id = get_current_network_id();
+                        $this->wpdb->query('INSERT INTO ' . $this->table_name .
+                            ' (domain, blog_id, site_id, post_name) VALUES(\'' .
+                            \addslashes($value) . '\', ' . $this->blog_id . ',' . $site_id . ', \'\')');
+                    } else { // message the user...
+                        \set_transient('ruigehond011_warning', 'Not a valid hostname, DNS propagation may take some time');
+                    }
                     break;
-                default:
-                    $options[$key] = $value;
+                default: // this must be a slug change
+                    // update the domain - slug combination
+                    $this->wpdb->query('UPDATE ' . $this->table_name . ' SET post_name = \'' .
+                        \addslashes(\sanitize_title($value)) . '\' WHERE domain = \'' .
+                        \addslashes($key) . '\';');
             }
         }
 
@@ -477,10 +492,9 @@ class ruigehond011
 
     public function menuitem()
     {
-        add_submenu_page(
-            null, // this will hide the settings page in the "settings" menu
-            'Each domain a page',
-            'Each domain a page',
+        add_options_page(
+            'Landingpages',
+            'Landingpages',
             'manage_options',
             'multisite-landingpages',
             array($this, 'settingspage')
@@ -517,10 +531,8 @@ class ruigehond011
             }
         }
         // check if the table already exists, if not create it
-        global $wpdb; // use base prefix to make a table shared by all the blogs
-        $table_name = $wpdb->base_prefix . 'ruigehond011_landingpage';
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
-            $sql = 'CREATE TABLE ' . $table_name . ' (
+        if ($this->wpdb->get_var('SHOW TABLES LIKE \'' . $this->table_name . '\'') !== $this->table_name) {
+            $sql = 'CREATE TABLE ' . $this->table_name . ' (
 						domain VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' NOT NULL PRIMARY KEY,
 						blog_id BIGINT NOT NULL,
 						site_id BIGINT NOT NULL,
@@ -530,32 +542,39 @@ class ruigehond011
 					DEFAULT CHARACTER SET = utf8mb4
 					COLLATE = utf8mb4_bin;
 					';
-            $wpdb->query($sql);
+            $this->wpdb->query($sql);
             //to approve: date_created > DATE_SUB(now(), INTERVAL 10 MINUTE)
         }
     }
+
+    public function deactivate()
+    {
+        // deactivate can be done per site
+        // remove settings
+        delete_option('ruigehond011');
+        // remove entries in the landingpage table as well
+        if (isset($this->blog_id)) {
+            $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
+        }
+    }
+
+    public function uninstall()
+    {
+        // uninstall is always a network remove, so you can safely remove the proprietary table here
+        if ($this->wpdb->get_var('SHOW TABLES LIKE \'' . $this->table_name . '\';') === $this->table_name) {
+            $this->wpdb->query('DROP TABLE ' . $this->table_name . ';');
+        }
+    }
+
 }
 
 /**
- * proxy functions for deactivate and uninstall
+ * uninstall proxy function
  */
-function ruigehond011_deactivate()
-{
-    // deactivate can be done per site
-    // remove settings
-    delete_option('ruigehond011');
-    // remove entries in the landingpage table as well
-
-}
-
 function ruigehond011_uninstall()
 {
-    // uninstall is always a network remove, so you can safely remove the proprietary table here
-    global $wpdb; // use base prefix to access the table shared by all the blogs
-    $table_name = $wpdb->base_prefix . 'ruigehond011_landingpage';
-    if ($wpdb->get_var('SHOW TABLES LIKE \'' . $table_name . '\';') === $table_name) {
-        $wpdb->query('DROP TABLE ' . $table_name . ';');
-    }
+    $hond = new ruigehond011();
+    $hond->uninstall();
 }
 
 function ruigehond011_display_warning()
@@ -565,9 +584,9 @@ function ruigehond011_display_warning()
         echo '<div class="notice notice-warning is-dismissible"><p>' . $warning . '</p></div>';
         /* Delete transient, only display this notice once. */
         delete_transient('ruigehond011_warning');
-        /* remember it as an option though, for the settings page as reference */
+        /* remember it as an option though, for the settings page as reference
         $option = get_option('ruigehond011');
         $option['warning'] = $warning;
-        update_option('ruigehond011', $option, true);
+        update_option('ruigehond011', $option, true);*/
     }
 }
