@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: Multisite Landingpages
-Plugin URI: https://github.com/joerivanveen/multisite-landingpages
-Description: Serves a specific landing page from Wordpress depending on the domain used to access the Wordpress installation.
-Version: 0.1.0
+Plugin URI: https://github.com/joerivanveen/each-domain-a-page
+Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
+Version: 0.9.0
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-Define('ruigehond011_VERSION', '0.1.0');
+Define('ruigehond011_VERSION', '0.9.0');
 // Register hooks for plugin management, functions are at the bottom of this file.
 register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
 register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -327,7 +327,7 @@ class ruigehond011
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
                     if ($args['approved']) {
                         echo '<span class="notice-success notice">';
-                        echo __('validated', 'multisite-landingpages');
+                        echo __('valid', 'multisite-landingpages');
                         echo '</span>';
                         if ($args['in_canonicals']) {
                             echo ' (';
@@ -409,15 +409,16 @@ class ruigehond011
         }
         // display warning about htaccess conditionally
         if ($this->onSettingsPage()) { // show warning only on own options page
-            if (isset($this->options['htaccess_warning'])) {
+            if (($warning = \get_option('ruigehond011_htaccess_warning'))) {
                 if ($this->htaccessContainsLines()) { // maybe the user added the lines already by hand
-                    //@since 1.3.0 bugfix:
-                    //unset($this->options['htaccess_warning']); <- this results in an error in update_option, hurray for WP :-(
-                    $this->options['htaccess_warning'] = null; // fortunately also returns false with isset()
-                    $this->options_changed = true;
-                    echo '<div class="notice"><p>' . __('Warning status cleared.', 'multisite-landingpages') . '</p></div>';
+                    \delete_option('ruigehond011_htaccess_warning');
+                    echo '<div class="notice"><p>';
+                    echo __('Warning status cleared.', 'multisite-landingpages');
+                    echo '</p></div>';
                 } else {
-                    echo '<div class="notice notice-warning"><p>' . $this->options['htaccess_warning'] . '</p></div>';
+                    echo '<div class="notice notice-warning"><p>';
+                    echo $warning;
+                    echo '</p></div>';
                 }
             }
         }
@@ -444,7 +445,6 @@ class ruigehond011
                 case 'domain_new':
                     if ($value === '') break; // empty values don’t need to be processed
                     // test domain utf-8 characters: όνομα.gr
-                    // todo test this with the intl extension of php enabled...
                     if (\function_exists('idn_to_ascii')) {
                         $value = \idn_to_ascii($value, IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46);
                     }
@@ -500,11 +500,7 @@ class ruigehond011
     public function settingslink($links)
     {
         $url = get_admin_url() . 'options-general.php?page=multisite-landingpages';
-        if (isset($this->options['htaccess_warning'])) {
-            $settings_link = '<a style="color: #ffb900;" href="' . $url . '">' . __('Warning', 'multisite-landingpages') . '</a>';
-        } else {
-            $settings_link = '<a href="' . $url . '">' . __('Settings', 'multisite-landingpages') . '</a>';
-        }
+        $settings_link = '<a href="' . $url . '">' . __('Settings', 'multisite-landingpages') . '</a>';
         array_unshift($links, $settings_link);
 
         return $links;
@@ -526,7 +522,6 @@ class ruigehond011
      */
     public function install()
     {
-        $this->options_changed = true;  // will save with autoload true, and also the htaccess_warning when generated
         // add cross origin for fonts to the htaccess
         if (!$this->htaccessContainsLines()) {
             $htaccess = get_home_path() . ".htaccess";
@@ -541,13 +536,13 @@ class ruigehond011
                     $lines[$key] = htmlentities($line);
                 }
                 $warning = '<strong>multisite-landingpages</strong><br/>';
-                $warning .= __('In order for webfonts to work on alternative domains you need to add the following lines to your .htaccess:', 'multisite-landingpages');
+                $warning .= __('In order for webfonts to work on alternative domains you need to have the following lines in your .htaccess', 'multisite-landingpages');
                 $warning .= '<br/><em>(';
                 $warning .= __('In addition you need to have mod_headers available.', 'multisite-landingpages');
                 $warning .= ')</em><br/>&nbsp;<br/>';
                 $warning .= '<CODE>' . implode('<br/>', $lines) . '</CODE>';
                 // report the lines to the user
-                $this->options['htaccess_warning'] = $warning;
+                \update_option('ruigehond011_htaccess_warning', $warning);
             }
         }
         // check if the table already exists, if not create it
@@ -570,8 +565,9 @@ class ruigehond011
     public function deactivate()
     {
         // deactivate can be done per site
-        // remove settings
-        delete_option('ruigehond011');
+        // remove options
+        \delete_option('ruigehond011');
+        \delete_option('ruigehond011_htaccess_warning'); // should this be present...
         // remove entries in the landingpage table as well
         if (isset($this->blog_id)) {
             $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
@@ -600,10 +596,10 @@ function ruigehond011_uninstall()
 function ruigehond011_display_warning()
 {
     /* Check transient, if available display it */
-    if ($warning = get_transient('ruigehond011_warning')) {
+    if ($warning = \get_transient('ruigehond011_warning')) {
         echo '<div class="notice notice-warning is-dismissible"><p>' . $warning . '</p></div>';
         /* Delete transient, only display this notice once. */
-        delete_transient('ruigehond011_warning');
+        \delete_transient('ruigehond011_warning');
         /* remember it as an option though, for the settings page as reference
         $option = get_option('ruigehond011');
         $option['warning'] = $warning;
