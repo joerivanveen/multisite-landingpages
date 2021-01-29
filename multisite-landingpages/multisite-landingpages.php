@@ -255,16 +255,51 @@ class ruigehond011
          * - the function that will validate the options, valid options are automatically saved by WP
          */
         register_setting('ruigehond011', 'ruigehond011', array($this, 'settings_validate'));
-        // register the first section
+        // new landing page:
+        add_settings_section(
+            'multisite_landingpages_new',
+            __('New landingpage', 'multisite-landingpages'),
+            function () {
+                echo '<p>';
+                echo __('In the DNS settings of your desired domain point it at this WordPress installation.', 'multisite-landingpages');
+                echo ' ';
+                echo __('Fill in the domain name (without protocol or irrelevant subdomains) below to add it.', 'multisite-landingpages');
+                echo ' ';
+                echo __('The domain must be reachable from this WordPress installation, allow some time for the DNS settings to propagate.', 'multisite-landingpages');
+                echo '</p>';
+            },
+            'ruigehond011'
+        );
+        // add the necessary field
+        add_settings_field(
+            'ruigehond011_new',
+            'Domain (without www)', // title
+            function ($args) {
+                echo '<input type="text" name="ruigehond011[domain_new]"/> ';
+                echo '<input type="submit" name="submit" value="';
+                echo __('Add', 'multisite-landingpages');
+                echo '" class="button button-primary"/>';
+            },
+            'ruigehond011',
+            'multisite_landingpages_new',
+            [
+                'class' => 'ruigehond_row',
+            ]
+        );
+        // landing pages section
         add_settings_section(
             'multisite_landingpages_domains',
             __('Domains and slugs', 'multisite-landingpages'),
             function () {
                 echo '<p>';
-                echo __('This plugin matches a slug to the domain used to access your Wordpress installation and shows that page or post.', 'multisite-landingpages');
-                echo '<br/><strong>';
+                echo __('For each domain that you added, you can assign a slug from a page or regular post.', 'multisite-landingpages');
+                echo ' ';
+                echo __('When someone visits your site using the domain, they will see the appropriate page or regular post.', 'multisite-landingpages');
+                echo ' <em>';
+                echo __('Custom post types are not yet supported.', 'multisite-landingpages');
+                echo '</em><br/><strong>';
                 echo __('The rest of your site keeps working as usual.', 'multisite-landingpages');
-                echo '</strong></p>';
+                echo '</strong></p><input type="hidden" name="ruigehond011[__delete__]"/>';
             },
             'ruigehond011'
         );
@@ -286,10 +321,19 @@ class ruigehond011
                     echo ']" value="';
                     echo $slug;
                     echo '"/> ';
+                    // delete button
+                    echo '<input type="submit" class="button" value="×" data-domain="';
+                    echo $domain;
+                    echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
                     if ($args['approved']) {
                         echo '<span class="notice-success notice">';
                         echo __('validated', 'multisite-landingpages');
                         echo '</span>';
+                        if ($args['in_canonicals']) {
+                            echo ' (';
+                            echo __('slug loaded in canonicals', 'multisite-landingpages');
+                            echo ')';
+                        }
                     } elseif ($args['is_new']) {
                         echo '<span class="notice-warning notice">';
                         echo __('visit your site with this domain to validate', 'multisite-landingpages');
@@ -299,13 +343,6 @@ class ruigehond011
                         echo __('expired', 'multisite-landingpages');
                         echo '</span>';
                     }
-                    if ($args['in_canonicals']) {
-                        echo ' (';
-                        echo __('slug loaded in canonicals', 'multisite-landingpages');
-                        echo ')';
-                    }
-                    // todo delete button
-                    echo ' <input type="submit" value="×" name="ruigehond011[delete]"/>';
                 },
                 'ruigehond011',
                 'multisite_landingpages_domains',
@@ -319,34 +356,6 @@ class ruigehond011
                 ]
             );
         }
-        // new landing page:
-        add_settings_section(
-            'multisite_landingpages_new',
-            __('New landingpage', 'multisite-landingpages'),
-            function () {
-                echo '<p>';
-                echo __('In the DNS settings of your desired domain point it at this WordPress installation.', 'multisite-landingpages');
-                echo ' ';
-                echo __('Fill in the domain name (without protocol or irrelevant subdomains) below to add it.', 'multisite-landingpages');
-                echo ' ';
-                echo __('The domain must be reachable from this WordPress installation, allow some time for the DNS settings to propagate.', 'multisite-landingpages');
-                echo '</p>';
-            },
-            'ruigehond011'
-        );
-        // add the necessary field
-        add_settings_field(
-            'ruigehond011_new',
-            'Domain (without www)', // title
-            function ($args) {
-                echo '<input type="text" name="ruigehond011[domain_new]"/>';
-            },
-            'ruigehond011',
-            'multisite_landingpages_new',
-            [
-                'class' => 'ruigehond_row',
-            ]
-        );
         // register a new section in the page
         add_settings_section(
             'multisite_landingpages_settings', // section id
@@ -356,8 +365,6 @@ class ruigehond011
                 echo __('If you want your landing pages to correctly identify with the domain, you should activate the canonicals option below.', 'multisite-landingpages');
                 echo ' ';
                 echo __('This makes the plugin slightly slower, it will however return the domain in most cases.', 'multisite-landingpages');
-                echo ' ';
-                echo __('Each canonical is activated by visiting your site once using that domain.', 'multisite-landingpages');
                 echo ' ';
                 echo __('SEO plugins like Yoast may or may not interfere with this. If they do, you can probably set the desired canonical for your landing page there.', 'multisite-landingpages');
                 echo '</p>';
@@ -448,8 +455,21 @@ class ruigehond011
                             ' (domain, blog_id, site_id, post_name) VALUES(\'' .
                             \addslashes($value) . '\', ' . $this->blog_id . ',' . $site_id . ', \'\')');
                     } else { // message the user...
-                        \set_transient('ruigehond011_warning', 'Not a valid hostname, DNS propagation may take some time');
+                        if (\function_exists('idn_to_ascii')) {
+                            \set_transient('ruigehond011_warning',
+                                __('Domain name not found, DNS propagation may take some time', 'multisite-landingpages'));
+                        } else {
+                            \set_transient('ruigehond011_warning',
+                                __('Domain name not found, DNS propagation may take some time', 'multisite-landingpages') .
+                                '<br/><em>' .
+                                __('Please note: international domainnames must be put in using ascii notation (punycode)', 'multisite-landingpages') .
+                                '</em>');
+                        }
                     }
+                    break;
+                case '__delete__':
+                    $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE domain = \'' .
+                        \addslashes($value) . '\';');
                     break;
                 default: // this must be a slug change
                     // update the domain - slug combination
