@@ -9,7 +9,7 @@ global $ruigehond011_minute;
 $ruigehond011_minute = 10;
 // call the function that selects blog based on the domain
 sunrise();
-// multi site setup info used:
+// intro to multisite setup sunrise stuff:
 // https://wordpress.stackexchange.com/a/126176
 
 /**
@@ -40,12 +40,12 @@ function sunrise()
 //    var_dump($wpdb->last_query);
 //    die();
 
-    if (count($rows) === 1) {
+    if (\count($rows) === 1) {
         $row = $rows[0];
         if ($row->approved !== '1') { // approve it when it is recent
             if ($row->is_new === '1') {
                 $wpdb->query('UPDATE ' . $table_name .
-                    ' SET approved = 1 WHERE domain = \'' . addslashes($row->landing_domain) . '\';');
+                    ' SET approved = 1 WHERE domain = \'' . \addslashes($row->landing_domain) . '\';');
                 if ($wpdb->rows_affected !== 1) {
                     wp_die('Sunrise() error in multisite-landingpage');
                 }
@@ -53,7 +53,7 @@ function sunrise()
                 $rows = \null;
                 // (attempt to) remove the entry
                 $wpdb->query('DELETE FROM ' . $table_name .
-                    ' WHERE domain = \'' . addslashes($row->landing_domain) . '\';');
+                    ' WHERE domain = \'' . \addslashes($row->landing_domain) . '\';');
                 return;
             }
         }

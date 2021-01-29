@@ -10,15 +10,15 @@ License: GPLv3
 Text Domain: multisite-landingpages
 Domain Path: /languages/
 */
-defined('ABSPATH') or die();
+\defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-Define('ruigehond011_VERSION', '0.9.0');
+\Define('ruigehond011_VERSION', '0.9.0');
 // Register hooks for plugin management, functions are at the bottom of this file.
-register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
-register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
-register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
+\register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
+\register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
+\register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
 // Startup the plugin
-add_action('init', array(new ruigehond011(), 'initialize'));
+\add_action('init', array(new ruigehond011(), 'initialize'));
 
 //
 class ruigehond011
@@ -45,7 +45,7 @@ class ruigehond011
         // set the minute to minute defined in sunrise.php, default to 10
         $this->minute = (isset($ruigehond011_minute)) ? \intval($ruigehond011_minute) : 10;
         // set the options for the current subsite
-        $this->options = get_option('ruigehond011');
+        $this->options = \get_option('ruigehond011');
         if (isset($this->options)) {
             $this->use_canonical = isset($this->options['use_canonical']) and (true === $this->options['use_canonical']);
             if ($this->use_canonical) {
@@ -80,16 +80,16 @@ class ruigehond011
     {
         // for ajax requests that (hopefully) use get_admin_url() you need to set them to the current domain if
         // applicable to avoid cross origin errors
-        add_filter('admin_url', array($this, 'adminUrl'));
+        \add_filter('admin_url', array($this, 'adminUrl'));
         if (is_admin()) {
-            load_plugin_textdomain('multisite-landingpages', false, dirname(plugin_basename(__FILE__)) . '/languages/');
-            add_action('admin_init', array($this, 'settings'));
-            add_action('admin_menu', array($this, 'menuitem')); // necessary to have the page accessible to user
-            add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'settingslink')); // settings link on plugins page
+            \load_plugin_textdomain('multisite-landingpages', false, \dirname(\plugin_basename(__FILE__)) . '/languages/');
+            \add_action('admin_init', array($this, 'settings'));
+            \add_action('admin_menu', array($this, 'menuitem')); // necessary to have the page accessible to user
+            \add_filter('plugin_action_links_' . \plugin_basename(__FILE__), array($this, 'settingslink')); // settings link on plugins page
             if ($this->onSettingsPage()) ruigehond011_display_warning();
         } else {
             // original
-            add_action('parse_request', array($this, 'get')); // passes WP_Query object
+            \add_action('parse_request', array($this, 'get')); // passes WP_Query object
             if ($this->use_canonical) {
                 // fix the canonical url for functions that get the url, subject to additions...
                 foreach (array(
@@ -100,7 +100,7 @@ class ruigehond011
                              'wpseo_opengraph_url', // Yoast
                              'wpseo_canonical', // Yoast
                          ) as $filter) {
-                    add_filter($filter, array($this, 'fixUrl'), 99, 1);
+                    \add_filter($filter, array($this, 'fixUrl'), 99, 1);
                 }
             }
         }
@@ -111,13 +111,13 @@ class ruigehond011
      * ajax calls without the dreaded cross origin errors (as long as people use the recommended get_admin_url())
      * @param $url
      * @return string|string[]
-     * @since 1.3.0
+     * @since 0.9.0
      */
     public function adminUrl($url)
     {
         $slug = $this->slug;
         if (isset($this->canonicals[$slug])) {
-            return str_replace(get_site_url(), $this->fixUrl($slug), $url);
+            return \str_replace(\get_site_url(), $this->fixUrl($slug), $url);
         }
 
         return $url;
@@ -145,11 +145,11 @@ class ruigehond011
         $slug = $this->slug;
         if (($type = $this->postType($slug))) { // fails when post not found, null is returned which is falsy
             if ($this->remove_sitename_from_title) {
-                if (has_action('wp_head', '_wp_render_title_tag') == 1) {
-                    remove_action('wp_head', '_wp_render_title_tag', 1);
-                    add_action('wp_head', array($this, 'render_title_tag'), 1);
+                if (\has_action('wp_head', '_wp_render_title_tag') == 1) {
+                    \remove_action('wp_head', '_wp_render_title_tag', 1);
+                    \add_action('wp_head', array($this, 'render_title_tag'), 1);
                 }
-                add_filter('wpseo_title', array($this, 'get_title'), 1);
+                \add_filter('wpseo_title', array($this, 'get_title'), 1);
             }
             if ($type === 'page') {
                 $query->query_vars['pagename'] = $slug;
@@ -168,7 +168,7 @@ class ruigehond011
 
     /**
      * substitute for standard wp title rendering to remove the site name
-     * @since 1.2.2
+     * @since 0.1.0
      */
     public function render_title_tag()
     {
@@ -177,7 +177,7 @@ class ruigehond011
 
     /**
      * substitute title for yoast
-     * @since 1.3.0
+     * @since 0.1.0
      */
     public function get_title()
     {
@@ -187,6 +187,7 @@ class ruigehond011
     /**
      * @param string $url Wordpress inputs the url it has calculated for a post
      * @return string if this url has a slug that is one of ours, the correct full domain name is returned, else unchanged
+     * @since 0.9.0
      */
     public function fixUrl($url) //, and $post if arguments is set to 2 in stead of one in add_filter (during initialize)
     {
@@ -206,14 +207,14 @@ class ruigehond011
     /**
      * @param $slug
      * @return string|null The post-type, or null when not found for this slug
+     * @since 0.1.0
      */
     private function postType($slug)
     {
         if (isset($this->post_types[$slug])) return $this->post_types[$slug];
-        global $wpdb;
-        $sql = 'SELECT post_type FROM ' . $wpdb->prefix . 'posts 
-        WHERE post_name = \'' . addslashes($slug) . '\' AND post_status = \'publish\';';
-        $type = $wpdb->get_var($sql);
+        $sql = 'SELECT post_type FROM ' . $this->wpdb->prefix . 'posts 
+        WHERE post_name = \'' . \addslashes($slug) . '\' AND post_status = \'publish\';';
+        $type = $this->wpdb->get_var($sql);
         $this->post_types[$slug] = $type;
 
         return $type;
@@ -234,11 +235,11 @@ class ruigehond011
      */
     private function htaccessContainsLines()
     {
-        $htaccess = get_home_path() . ".htaccess";
-        if (file_exists($htaccess)) {
-            $str = file_get_contents($htaccess);
-            if ($start = strpos($str, '<FilesMatch "\.(eot|ttf|otf|woff)$">')) {
-                if (strpos($str, 'Header set Access-Control-Allow-Origin "*"', $start)) {
+        $htaccess = \get_home_path() . ".htaccess";
+        if (\file_exists($htaccess)) {
+            $str = \file_get_contents($htaccess);
+            if ($start = \strpos($str, '<FilesMatch "\.(eot|ttf|otf|woff)$">')) {
+                if (\strpos($str, 'Header set Access-Control-Allow-Origin "*"', $start)) {
                     return true;
                 }
             }
@@ -297,9 +298,9 @@ class ruigehond011
             __('Domains and slugs', 'multisite-landingpages'),
             function () {
                 echo '<p>';
-                echo __('For each domain that you added, you can assign a slug from a page or regular post.', 'multisite-landingpages');
+                echo __('For each domain, you can assign a ‘URL Slug’ from a page or regular post.', 'multisite-landingpages');
                 echo ' ';
-                echo __('When someone visits your site using the domain, they will see the appropriate page or regular post.', 'multisite-landingpages');
+                echo __('When someone visits your site using the domain, they will see the assigned page or regular post.', 'multisite-landingpages');
                 echo ' <em>';
                 echo __('Custom post types are not yet supported.', 'multisite-landingpages');
                 echo '</em><br/><strong>';
@@ -390,7 +391,7 @@ class ruigehond011
                     $setting_name = $args['option_name'];
                     $options = $args['options'];
                     // boolval = bugfix: old versions save ‘true’ as ‘1’
-                    $checked = boolval((isset($options[$setting_name])) ? $options[$setting_name] : false);
+                    $checked = \boolval((isset($options[$setting_name])) ? $options[$setting_name] : false);
                     // make checkbox that transmits 1 or 0, depending on status
                     echo '<label><input type="hidden" name="ruigehond011[';
                     echo $setting_name;
@@ -433,11 +434,11 @@ class ruigehond011
      * Validates settings, especially formats the locales to an object ready for use before storing the option
      * @param $input
      * @return array
-     * @since 1.3.0
+     * @since 0.9.0
      */
     public function settings_validate($input)
     {
-        $options = (array)get_option('ruigehond011');
+        $options = (array)\get_option('ruigehond011');
         foreach ($input as $key => $value) {
             switch ($key) {
                 // on / off flags (1 vs 0 on form submit, true / false otherwise
@@ -455,7 +456,7 @@ class ruigehond011
                     }
                     if (\dns_check_record($value, 'A') or \dns_check_record($value, 'AAAA')) {
                         // if the domain exists, insert it in the landingpage table
-                        $site_id = get_current_network_id();
+                        $site_id = \get_current_network_id();
                         $this->wpdb->query('INSERT INTO ' . $this->table_name .
                             ' (domain, blog_id, site_id, post_name) VALUES(\'' .
                             \addslashes($value) . '\', ' . $this->blog_id . ',' . $site_id . ', \'\')');
@@ -504,9 +505,9 @@ class ruigehond011
 
     public function settingslink($links)
     {
-        $url = get_admin_url() . 'options-general.php?page=multisite-landingpages';
+        $url = \get_admin_url() . 'options-general.php?page=multisite-landingpages';
         $settings_link = '<a href="' . $url . '">' . __('Settings', 'multisite-landingpages') . '</a>';
-        array_unshift($links, $settings_link);
+        \array_unshift($links, $settings_link);
 
         return $links;
     }
@@ -545,7 +546,7 @@ class ruigehond011
                 $warning .= '<br/><em>(';
                 $warning .= __('In addition you need to have mod_headers available.', 'multisite-landingpages');
                 $warning .= ')</em><br/>&nbsp;<br/>';
-                $warning .= '<CODE>' . implode('<br/>', $lines) . '</CODE>';
+                $warning .= '<CODE>' . \implode('<br/>', $lines) . '</CODE>';
                 // report the lines to the user
                 \update_option('ruigehond011_htaccess_warning', $warning);
             }
