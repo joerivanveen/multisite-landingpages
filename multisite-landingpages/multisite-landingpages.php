@@ -74,7 +74,7 @@ class ruigehond011
 
     /**
      * initialize the plugin, sets up necessary filters and actions.
-     * @since 1.0.0
+     * @since 0.1.0
      */
     public function initialize()
     {
@@ -115,7 +115,10 @@ class ruigehond011
      */
     public function adminUrl($url)
     {
-        if ($this->postType($this->slug)) return str_replace(get_site_url(), '', $url);
+        $slug = $this->slug;
+        if (isset($this->canonicals[$slug])) {
+            return str_replace(get_site_url(), $this->fixUrl($slug), $url);
+        }
 
         return $url;
     }
@@ -187,11 +190,13 @@ class ruigehond011
      */
     public function fixUrl($url) //, and $post if arguments is set to 2 in stead of one in add_filter (during initialize)
     {
-        if ($index = \strrpos($url, '/', -2)) { // skip over the trailing slash
-            $proposed_slug = \str_replace('/', '', \str_replace('www-', '', \substr($url, $index + 1)));
-            if (isset($this->canonicals[$proposed_slug])) {
-                $url = $this->canonical_prefix . $this->canonicals[$proposed_slug];
-            }
+        if (\false !== ($index = \strrpos($url, '/', -2))) { // skip over the trailing slash
+            $url = \substr($url, $index + 1);
+        }
+        $proposed_slug = \str_replace('/', '', $url);
+
+        if (isset($this->canonicals[$proposed_slug])) {
+            $url = $this->canonical_prefix . $this->canonicals[$proposed_slug];
         }
 
         return $url;
