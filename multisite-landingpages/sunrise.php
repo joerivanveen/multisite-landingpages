@@ -24,9 +24,9 @@ function sunrise()
     // get the domain
     $domain = \strtolower(\stripslashes($_SERVER['HTTP_HOST']));
     // remove the port number if present
-    if (\false !== \strpos($domain, ':')) {
-        $domain = \explode(':', $domain)[0];
-    }
+    if (\false !== \strpos($domain, ':')) $domain = \explode(':', $domain)[0];
+    // remove www if present
+    if (\strpos($domain, 'www.') === 0) $domain = \substr($domain, 4);
 
     // if the domain is in the landingpage table, setup the global site and blog name for ms-settings.php
     // else do nothing, it will be setup like this multisite works normally

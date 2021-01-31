@@ -449,6 +449,8 @@ class ruigehond011
                     break;
                 case 'domain_new':
                     if ($value === '') break; // empty values don’t need to be processed
+                    // remove www
+                    if (\strpos($value, 'www.') === 0) $value = \substr($value, 4);
                     // test domain utf-8 characters: όνομα.gr
                     if (\function_exists('idn_to_ascii')) {
                         $value = \idn_to_ascii($value, IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46);
