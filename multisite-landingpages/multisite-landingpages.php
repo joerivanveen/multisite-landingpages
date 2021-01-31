@@ -191,10 +191,9 @@ class ruigehond011
      */
     public function fixUrl($url) //, and $post if arguments is set to 2 in stead of one in add_filter (during initialize)
     {
-        if (\false !== ($index = \strrpos($url, '/', -2))) { // skip over the trailing slash
-            $url = \substr($url, $index + 1);
-        }
-        $proposed_slug = \str_replace('/', '', $url);
+        // -2 = skip over trailing slash, if no slashes are found, $url must be a clean slug, else, extract the last part
+        $proposed_slug = (\false === ($index = \strrpos($url, '/', -2))) ? $url : \substr($url, $index + 1);
+        $proposed_slug = \trim($proposed_slug, '/');
 
         if (isset($this->canonicals[$proposed_slug])) {
             $url = $this->canonical_prefix . $this->canonicals[$proposed_slug];
@@ -431,7 +430,7 @@ class ruigehond011
     }
 
     /**
-     * Validates settings, especially formats the locales to an object ready for use before storing the option
+     * Validates settings, handles saving and deleting of the landingpage domains directly
      * @param $input
      * @return array
      * @since 0.9.0
@@ -606,9 +605,5 @@ function ruigehond011_display_warning()
         echo '<div class="notice notice-warning is-dismissible"><p>' . $warning . '</p></div>';
         /* Delete transient, only display this notice once. */
         \delete_transient('ruigehond011_warning');
-        /* remember it as an option though, for the settings page as reference
-        $option = get_option('ruigehond011');
-        $option['warning'] = $warning;
-        update_option('ruigehond011', $option, true);*/
     }
 }
