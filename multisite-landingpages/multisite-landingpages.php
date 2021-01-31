@@ -555,10 +555,10 @@ class ruigehond011
     public function cronjob()
     {
         $records = $this->wpdb->get_results('SELECT domain, txt_record, approved FROM ' . $this->table_name);
-        // for each record, you need to check if the txt is available, update the approved if it changed
+        // for each record, you need to check if the txt is available, update the approved value if it changed
         foreach ($records as $index => $record) {
             if (\true === $this->checkTxtRecord($record->domain, $record->txt_record)) {
-                if ($record->approved !== '1') {                    // re-approve it
+                if ($record->approved !== '1') { // re-approve it / reset it
                     $this->wpdb->query('UPDATE ' . $this->table_name .
                         ' SET approved = \'1\' WHERE domain = \'' . \addslashes($record->domain) . '\'');
                 }

@@ -11,7 +11,11 @@ Set the sunrise constant in wp-config.php, somewhere below the multisite constan
 
 Multisite-landingpages creates a small table holding the domain names put in by subsite admins. The domain column is the primary key so queries should run fast even with many domains.
 
-Subsite administrators must validate an assigned domain within a set couple of minutes (default is 10), this can be configured in the code in sunrise.php.
+Subsite administrators must put a TXT record in their DNS for any domain they want to add to prove they own it. This TXT record is unique for each subsite and installation (it uses the uuid4 functionality) and displayed to the administrator on the settings page.
+If the TXT record is not present the domain will not be added.
+A cron job runs every hour updating the entries according to the presence of their corresponding TXT records, to account for transfer of ownership.
+To allow for temporary unavailability of DNS servers only after 3 tries a domain is suspended and will not work anymore.
+Or, when someone else adds the domain and proves ownership, the domain is assigned to that subsite (and not visible anymore to the old subsite).
 
 For custom fonts to work the following code must be added to .htaccess:
 
@@ -25,11 +29,10 @@ The plugin will attempt to do this and warn when failed. The lines will be clear
 
 ## Documented working (subsite)
 Subsite administrators get a ‘settings’ page called ‘Landingpages’ once the plugin is active.
-They may put in domain names they have pointed the A and / or AAAA record towards the WordPress installation.
-After they put it in, they can assign a slug, which must be of a page or a regular post type (custom post types not supported).
-The plugin will match a domain name to a slug and show the page or post of that slug then. If no match occurs, the plugin has no influence whatsoever.
-
-When a subsite admin puts in a domain, they must visit that domain within 10 minutes to validate. If they fail to do that the domain will be marked ‘expired’. The admin can delete it, or it will be deleted automatically the next time this WordPress installation is visited by that domain.
+At the top is displayed the TXT record containing the guid they must add to the DNS records for the domains they want to add.
+A domain will be added when the record is found, after that they can assign a slug, which must be of a page or a regular post type (custom post types not supported).
+The plugin will match a domain name to a slug and show the page or post of that slug then. If no match occurs, the plugin has no influence.
+If the ‘canonicals’ option is checked however the plugin will always actively rewrite links to any of the landingpage domains of the current subsite.
 
 ### Note about international domainnames
 International domains, containing utf-8 characters, will be stored in punycode (ascii notation). Either automatically (when available) or they must be put in as such by the user. Upon failure a clear warning will be shown.
