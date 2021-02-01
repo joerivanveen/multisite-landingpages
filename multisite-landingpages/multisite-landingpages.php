@@ -13,6 +13,9 @@ Domain Path: /languages/
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
 \Define('ruigehond011_VERSION', '0.9.1');
+// setup cron hook that checks dns txt records
+// https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
+\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -25,6 +28,7 @@ class ruigehond011
 {
     private $options, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
     private $slug, $minute, $wpdb, $blog_id, $txt_record, $table_name, $locale, $post_types = array(); // cached values
+    private $db_version;
 
     /**
      * ruigehond011 constructor
@@ -67,11 +71,18 @@ class ruigehond011
                 }
             }
             $this->remove_sitename_from_title = isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']);
+            // get the txt_record value or set it when not available yet
             if (\false === isset($this->options['txt_record'])) { // add the guid to use for txt_record for this subsite
                 $this->options['txt_record'] = 'multisite-landingpages-' . \wp_generate_uuid4();
                 \update_option('ruigehond011', $this->options);
             }
             $this->txt_record = $this->options['txt_record'];
+            // get the database version number, set it when not yet available
+            if (\false === isset($this->options['db_version'])) {
+                $this->options['db_version'] = '0.0.0';
+                \update_option('ruigehond011', $this->options);
+            }
+            $this->db_version = $this->options['db_version'];
         }
         // https://wordpress.stackexchange.com/a/89965
         //if (isset($this->locale)) add_filter('locale', array($this, 'getLocale'), 1, 1);
@@ -86,10 +97,10 @@ class ruigehond011
         // for ajax requests that (hopefully) use get_admin_url() you need to set them to the current domain if
         // applicable to avoid cross origin errors
         \add_filter('admin_url', array($this, 'adminUrl'));
-        // setup cron hook that checks dns txt records
-        // https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
-        \add_action('ruigehond011_cron_hook', array($this, 'cronjob'));
         if (is_admin()) {
+            // seems excessive but no better stable solution found yet
+            // update check only on admin, so make sure to be admin after updating :-)
+            $this->updateWhenNecessary();
             \load_plugin_textdomain('multisite-landingpages', false, \dirname(\plugin_basename(__FILE__)) . '/languages/');
             \add_action('admin_init', array($this, 'settings'));
             \add_action('admin_menu', array($this, 'menuitem')); // necessary to have the page accessible to user
@@ -330,6 +341,7 @@ class ruigehond011
                 function ($args) {
                     $domain = $args['domain'];
                     $slug = $args['slug'];
+                    $approved = \intval($args['approved']);
                     echo '<input type="text" name="ruigehond011[';
                     echo $domain;
                     echo ']" value="';
@@ -339,7 +351,7 @@ class ruigehond011
                     echo '<input type="submit" class="button" value="×" data-domain="';
                     echo $domain;
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
-                    if ($args['approved']) {
+                    if ($approved === 1) {
                         echo '<span class="notice-success notice">';
                         echo __('valid', 'multisite-landingpages');
                         echo '</span>';
@@ -348,9 +360,15 @@ class ruigehond011
                             echo __('slug loaded in canonicals', 'multisite-landingpages');
                             echo ')';
                         }
-                    } else {
+                    } elseif ($approved === 0) {
                         echo '<span class="notice-error notice">';
-                        echo __('suspended, check mandatory TXT record', 'multisite-landingpages');
+                        echo __('suspended, check your TXT record', 'multisite-landingpages');
+                        echo '</span>';
+                    } else {
+                        echo '<span class="notice-warning notice" data-approved="';
+                        echo $approved;
+                        echo '">';
+                        echo __('TXT record could not be verified', 'multisite-landingpages');
                         echo '</span>';
                     }
                 },
@@ -358,7 +376,6 @@ class ruigehond011
                 'multisite_landingpages_domains',
                 [
                     'slug' => $slug,
-                    'is_new' => $row->is_new,
                     'approved' => $row->approved,
                     'in_canonicals' => isset($this->canonicals[$slug]),
                     'domain' => $domain,
@@ -470,14 +487,16 @@ class ruigehond011
                         $this->wpdb->query('INSERT INTO ' . $this->table_name .
                             ' (domain, blog_id, site_id, post_name, txt_record, approved) VALUES(\'' .
                             \addslashes($value) . '\', ' . $this->blog_id . ',' . $site_id . ', \'\', \'' .
-                            \addslashes($this->txt_record) . '\', \'1\')');
+                            \addslashes($this->txt_record) . '\', 1)');
+                        //var_dump($this->wpdb->last_query);
+                        //die(' opa');
                     } else { // message the user...
                         if (\function_exists('idn_to_ascii')) {
                             \set_transient('ruigehond011_warning',
-                                __('Please add the required TXT record to your DNS before adding the domain here', 'multisite-landingpages'));
+                                __('Please add the required TXT record, note that DNS propagation can take several hours', 'multisite-landingpages'));
                         } else {
                             \set_transient('ruigehond011_warning',
-                                __('Please add the required TXT record to your DNS before adding the domain here', 'multisite-landingpages') .
+                                __('Please add the required TXT record, note that DNS propagation can take several hours', 'multisite-landingpages') .
                                 '<br/><em>' .
                                 __('Please note: international domainnames must be put in using ascii notation (punycode)', 'multisite-landingpages') .
                                 '</em>');
@@ -506,9 +525,11 @@ class ruigehond011
      */
     public function checkTxtRecord($domain, $txt_value)
     {
-        if (\is_array(($records = \dns_get_record($domain, DNS_TXT)))) {
+        if (\is_array(($dns_records = \dns_get_record($domain, DNS_TXT)))) {
             // check for the record
-            foreach ($records as $index => $record) {
+            //var_dump($dns_records);
+            //die(' opa');
+            foreach ($dns_records as $index => $record) {
                 if (\is_array($record) and isset($record['txt']) and $record['txt'] === $txt_value) {
                     return \true;
                 }
@@ -554,21 +575,23 @@ class ruigehond011
 
     public function cronjob()
     {
-        $records = $this->wpdb->get_results('SELECT domain, txt_record, approved FROM ' . $this->table_name);
+        $dns_records = $this->wpdb->get_results('SELECT domain, txt_record, approved FROM ' . $this->table_name);
         // for each record, you need to check if the txt is available, update the approved value if it changed
-        foreach ($records as $index => $record) {
+        foreach ($dns_records as $index => $record) {
             if (\true === $this->checkTxtRecord($record->domain, $record->txt_record)) {
-                if ($record->approved !== '1') { // re-approve it / reset it
+                if (\strval($record->approved) !== '1') { // re-approve it / reset it
                     $this->wpdb->query('UPDATE ' . $this->table_name .
-                        ' SET approved = \'1\' WHERE domain = \'' . \addslashes($record->domain) . '\'');
+                        ' SET approved = 1 WHERE domain = \'' . \addslashes($record->domain) . '\'');
                 }
-            } elseif ($record->approved === '3') { // disapprove it
-                $this->wpdb->query('UPDATE '. $this->table_name .
-                    ' SET approved = \'0\' WHERE domain = \'' . \addslashes($record->domain) . '\'');
-            } else { // count the approved value one up
-                $approved = \intval($record->approved) + 1;
-                $this->wpdb->query('UPDATE '. $this->table_name .
-                ' SET approved = \''.\strval($approved).'\' WHERE domain = \'' . \addslashes($record->domain) . '\'');
+            } else {
+                if (\strval($record->approved) === '3') { // disapprove it
+                    $this->wpdb->query('UPDATE ' . $this->table_name .
+                        ' SET approved = 0 WHERE domain = \'' . \addslashes($record->domain) . '\'');
+                } else { // count the approved value one up
+                    $approved = \intval($record->approved) + 1;
+                    $this->wpdb->query('UPDATE ' . $this->table_name .
+                        ' SET approved = ' . \strval($approved) . ' WHERE domain = \'' . \addslashes($record->domain) . '\'');
+                }
             }
         }
     }
@@ -576,6 +599,28 @@ class ruigehond011
     /**
      * plugin management functions
      */
+    public function updateWhenNecessary()
+    {
+        if (\version_compare($this->db_version, '0.9.1') < 0) {
+            // on busy sites this can be called several times, so suppress the errors
+            $this->wpdb->suppress_errors = true;
+            // the txt_record added to the landingpage table
+            if (\is_null($this->wpdb->get_var("SHOW COLUMNS FROM $this->table_name LIKE 'txt_record'"))) {
+                $sql = 'ALTER TABLE ' . $this->table_name .
+                    ' ADD COLUMN txt_record VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' AFTER post_name;';
+                if ($this->wpdb->query($sql)) {
+                    // register current version, but keep incremental updates (for when someone skips a version)
+                    $this->options['db_version'] = '0.9.1';
+                    \update_option('ruigehond011', $this->options);
+                    \set_transient('ruigehond011_warning',
+                        \sprintf(__('multisite-landingpages updated database to %s', 'multisite-landingpages'), '0.9.1'));
+                }
+            }
+            $this->wpdb->suppress_errors = false;
+        }
+
+    }
+
     public function install()
     {
         // add cross origin for fonts to the htaccess
@@ -617,8 +662,8 @@ class ruigehond011
             $this->wpdb->query($sql);
         }
         // add the cron job that checks the dns txt records, if not already active
-        if (!wp_next_scheduled('ruigehond011_cron_hook')) {
-            wp_schedule_event(time(), 'one_hour', 'ruigehond011_cron_hook');
+        if (!\wp_next_scheduled('ruigehond011_check_dns')) {
+            \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
         }
     }
 
@@ -641,8 +686,8 @@ class ruigehond011
             $this->wpdb->query('DROP TABLE ' . $this->table_name . ';');
         }
         // forget about the cron job as well
-        $timestamp = wp_next_scheduled('ruigehond011_cron_hook');
-        wp_unschedule_event($timestamp, 'ruigehond011_cron_hook'); // also all future events are unscheduled
+        $timestamp = wp_next_scheduled('ruigehond011_check_dns');
+        wp_unschedule_event($timestamp, 'ruigehond011_check_dns'); // also all future events are unscheduled
     }
 
 }
