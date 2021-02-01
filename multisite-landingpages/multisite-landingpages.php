@@ -17,7 +17,7 @@ Domain Path: /languages/
 // https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
 \add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Register hooks for plugin management, functions are at the bottom of this file.
-\register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
+\register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
 // Startup the plugin
@@ -97,6 +97,8 @@ class ruigehond011
         // for ajax requests that (hopefully) use get_admin_url() you need to set them to the current domain if
         // applicable to avoid cross origin errors
         \add_filter('admin_url', array($this, 'adminUrl'));
+        // TODO remove this, it must be done by the real cronjob
+        $this->cronjob();
         if (is_admin()) {
             // seems excessive but no better stable solution found yet
             // update check only on admin, so make sure to be admin after updating :-)
@@ -579,12 +581,12 @@ class ruigehond011
         // for each record, you need to check if the txt is available, update the approved value if it changed
         foreach ($dns_records as $index => $record) {
             if (\true === $this->checkTxtRecord($record->domain, $record->txt_record)) {
-                if (\strval($record->approved) !== '1') { // re-approve it / reset it
+                if (\intval($record->approved) !== 1) { // re-approve it / reset it
                     $this->wpdb->query('UPDATE ' . $this->table_name .
                         ' SET approved = 1 WHERE domain = \'' . \addslashes($record->domain) . '\'');
                 }
-            } else {
-                if (\strval($record->approved) === '3') { // disapprove it
+            } elseif (($approved = \intval($record->approved)) > 0){
+                if ($approved === 3) { // disapprove it
                     $this->wpdb->query('UPDATE ' . $this->table_name .
                         ' SET approved = 0 WHERE domain = \'' . \addslashes($record->domain) . '\'');
                 } else { // count the approved value one up
@@ -621,7 +623,7 @@ class ruigehond011
 
     }
 
-    public function install()
+    public function activate($networkwide)
     {
         // add cross origin for fonts to the htaccess
         if (!$this->htaccessContainsLines()) {
@@ -662,7 +664,7 @@ class ruigehond011
             $this->wpdb->query($sql);
         }
         // add the cron job that checks the dns txt records, if not already active
-        if (!\wp_next_scheduled('ruigehond011_check_dns')) {
+        if (\false === \wp_next_scheduled('ruigehond011_check_dns')) {
             \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
         }
     }
