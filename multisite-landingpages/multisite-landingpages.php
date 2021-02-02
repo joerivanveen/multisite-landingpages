@@ -97,8 +97,6 @@ class ruigehond011
         // for ajax requests that (hopefully) use get_admin_url() you need to set them to the current domain if
         // applicable to avoid cross origin errors
         \add_filter('admin_url', array($this, 'adminUrl'));
-        // TODO remove this, it must be done by the real cronjob
-        $this->cronjob();
         if (is_admin()) {
             // seems excessive but no better stable solution found yet
             // update check only on admin, so make sure to be admin after updating :-)
