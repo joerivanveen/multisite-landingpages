@@ -13,13 +13,13 @@ Domain Path: /languages/
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
 \Define('ruigehond011_VERSION', '0.9.1');
-// setup cron hook that checks dns txt records
-// https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
-\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
+// setup cron hook that checks dns txt records
+// https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
+\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Startup the plugin
 \add_action('init', array(new ruigehond011(), 'initialize'));
 
@@ -50,6 +50,7 @@ class ruigehond011
         $this->minute = (isset($ruigehond011_minute)) ? \intval($ruigehond011_minute) : 10;
         // set the options for the current subsite
         $this->options = \get_option('ruigehond011');
+        $options_changed = false;
         if (isset($this->options)) {
             $this->use_canonical = isset($this->options['use_canonical']) and (true === $this->options['use_canonical']);
             if ($this->use_canonical) {
@@ -74,15 +75,19 @@ class ruigehond011
             // get the txt_record value or set it when not available yet
             if (\false === isset($this->options['txt_record'])) { // add the guid to use for txt_record for this subsite
                 $this->options['txt_record'] = 'multisite-landingpages-' . \wp_generate_uuid4();
-                \update_option('ruigehond011', $this->options);
+                $options_changed = \true;
             }
             $this->txt_record = $this->options['txt_record'];
             // get the database version number, set it when not yet available
             if (\false === isset($this->options['db_version'])) {
                 $this->options['db_version'] = '0.0.0';
-                \update_option('ruigehond011', $this->options);
+                $options_changed = \true;
             }
             $this->db_version = $this->options['db_version'];
+            // update the options if they were changed during construction
+            if (\true === $options_changed) {
+                \update_option('ruigehond011', $this->options);
+            }
         }
         // https://wordpress.stackexchange.com/a/89965
         //if (isset($this->locale)) add_filter('locale', array($this, 'getLocale'), 1, 1);
@@ -583,7 +588,7 @@ class ruigehond011
                     $this->wpdb->query('UPDATE ' . $this->table_name .
                         ' SET approved = 1 WHERE domain = \'' . \addslashes($record->domain) . '\'');
                 }
-            } elseif (($approved = \intval($record->approved)) > 0){
+            } elseif (($approved = \intval($record->approved)) > 0) {
                 if ($approved === 3) { // disapprove it
                     $this->wpdb->query('UPDATE ' . $this->table_name .
                         ' SET approved = 0 WHERE domain = \'' . \addslashes($record->domain) . '\'');
@@ -667,20 +672,43 @@ class ruigehond011
         }
     }
 
-    public function deactivate()
+    public function deactivate($network_deactivate)
     {
-        // deactivate can be done per site
-        // remove options
-        \delete_option('ruigehond011');
-        \delete_option('ruigehond011_htaccess_warning'); // should this be present...
-        // remove entries in the landingpage table as well
-        if (isset($this->blog_id)) {
-            $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
+        // deactivate can be done per site or the whole network
+        if (\true === $network_deactivate) { // loop through all sites
+            if (\false === \wp_is_large_network()) {
+                $blogs = get_sites();
+                foreach ($blogs as $index => $blog) {
+                    \switch_to_blog($blog->blog_id);
+                    // remove active plugin (apparently this is not done automatically)
+                    $plugins = \get_option('active_plugins');
+                    // remove this as an active plugin: multisite-landingpages/multisite-landingpages.php
+                    if (($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins)) !== false) {
+                        unset($plugins[$key]);
+                        \update_option('active_plugins', $plugins);
+                    }
+                    // remove options
+                    \delete_option('ruigehond011');
+                    \delete_option('ruigehond011_htaccess_warning'); // should this be present...
+                    \restore_current_blog(); // NOTE restore everytime to prevent inconsistent state
+                }
+            }
+        } else {
+            // remove options and entries for this blog only
+            \delete_option('ruigehond011');
+            \delete_option('ruigehond011_htaccess_warning'); // should this be present...
+            // remove entries in the landingpage table as well
+            // not necessary for network deactivate as the table is dropped on uninstall
+            if (isset($this->blog_id)) {
+                $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
+            }
         }
     }
 
-    public function uninstall()
+    public function network_uninstall()
     {
+        // deactivate all instances
+        $this->deactivate(\true);
         // uninstall is always a network remove, so you can safely remove the proprietary table here
         if ($this->wpdb->get_var('SHOW TABLES LIKE \'' . $this->table_name . '\';') === $this->table_name) {
             $this->wpdb->query('DROP TABLE ' . $this->table_name . ';');
@@ -689,16 +717,12 @@ class ruigehond011
         $timestamp = wp_next_scheduled('ruigehond011_check_dns');
         wp_unschedule_event($timestamp, 'ruigehond011_check_dns'); // also all future events are unscheduled
     }
-
 }
 
-/**
- * uninstall proxy function
- */
 function ruigehond011_uninstall()
 {
     $hond = new ruigehond011();
-    $hond->uninstall();
+    $hond->network_uninstall();
 }
 
 function ruigehond011_display_warning()
