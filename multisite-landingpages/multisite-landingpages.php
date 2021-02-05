@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 0.9.1
+Version: 0.9.2
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,14 +12,14 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '0.9.1');
+\Define('ruigehond011_VERSION', '0.9.2');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
 // setup cron hook that checks dns txt records
 // https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
-\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
+//\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Startup the plugin
 \add_action('init', array(new ruigehond011(), 'initialize'));
 
@@ -337,6 +337,7 @@ class ruigehond011
         // actual landing pages here
         $rows = $this->wpdb->get_results('SELECT domain, post_name, approved FROM ' .
             $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ' ORDER BY domain;');
+        $txt_record = $this->txt_record;
         foreach ($rows as $index => $row) {
             $domain = $row->domain;
             $slug = $row->post_name;
@@ -346,7 +347,7 @@ class ruigehond011
                 function ($args) {
                     $domain = $args['domain'];
                     $slug = $args['slug'];
-                    $approved = \intval($args['approved']);
+                    $approved = \boolval($args['approved']);
                     echo '<input type="text" name="ruigehond011[';
                     echo $domain;
                     echo ']" value="';
@@ -356,7 +357,7 @@ class ruigehond011
                     echo '<input type="submit" class="button" value="×" data-domain="';
                     echo $domain;
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
-                    if ($approved === 1) {
+                    if (\true === $approved) {
                         echo '<span class="notice-success notice">';
                         echo __('valid', 'multisite-landingpages');
                         echo '</span>';
@@ -365,14 +366,12 @@ class ruigehond011
                             echo __('slug loaded in canonicals', 'multisite-landingpages');
                             echo ')';
                         }
-                    } elseif ($approved === 0) {
+                    /*} elseif ($approved === 0) {
                         echo '<span class="notice-error notice">';
                         echo __('suspended, check your TXT record', 'multisite-landingpages');
-                        echo '</span>';
+                        echo '</span>';*/
                     } else {
-                        echo '<span class="notice-warning notice" data-approved="';
-                        echo $approved;
-                        echo '">';
+                        echo '<span class="notice-warning notice">';
                         echo __('TXT record could not be verified', 'multisite-landingpages');
                         echo '</span>';
                     }
@@ -381,7 +380,7 @@ class ruigehond011
                 'multisite_landingpages_domains',
                 [
                     'slug' => $slug,
-                    'approved' => $row->approved,
+                    'approved' => $this->checkTxtRecord($domain, $txt_record),
                     'in_canonicals' => isset($this->canonicals[$slug]),
                     'domain' => $domain,
                     'class' => 'ruigehond_row',
@@ -580,6 +579,8 @@ class ruigehond011
 
     public function cronjob()
     {
+        // we’re checking it in the admin interface: more direct and consumes less resources in large networks
+        return;
         $dns_records = $this->wpdb->get_results('SELECT domain, txt_record, approved FROM ' . $this->table_name);
         // for each record, you need to check if the txt is available, update the approved value if it changed
         foreach ($dns_records as $index => $record) {
@@ -667,9 +668,9 @@ class ruigehond011
             $this->wpdb->query($sql);
         }
         // add the cron job that checks the dns txt records, if not already active
-        if (\false === \wp_next_scheduled('ruigehond011_check_dns')) {
+        /*if (\false === \wp_next_scheduled('ruigehond011_check_dns')) {
             \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
-        }
+        }*/
     }
 
     public function deactivate($network_deactivate)
@@ -714,8 +715,8 @@ class ruigehond011
             $this->wpdb->query('DROP TABLE ' . $this->table_name . ';');
         }
         // forget about the cron job as well
-        $timestamp = wp_next_scheduled('ruigehond011_check_dns');
-        wp_unschedule_event($timestamp, 'ruigehond011_check_dns'); // also all future events are unscheduled
+        $timestamp = \wp_next_scheduled('ruigehond011_check_dns');
+        \wp_unschedule_event($timestamp, 'ruigehond011_check_dns'); // also all future events are unscheduled
     }
 }
 
