@@ -531,10 +531,11 @@ class ruigehond011
     {
         if (\is_array(($dns_records = \dns_get_record($domain, DNS_TXT)))) {
             // check for the record
+            //var_dump($txt_value);
             //var_dump($dns_records);
             //die(' opa');
             foreach ($dns_records as $index => $record) {
-                if (\is_array($record) and isset($record['txt']) and $record['txt'] === $txt_value) {
+                if (\is_array($record) and isset($record['txt']) and \trim($record['txt']) === $txt_value) {
                     return \true;
                 }
             }
