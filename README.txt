@@ -7,15 +7,15 @@ Of course, they can ‘network activate’ or deactivate and uninstall this plug
 
 However, this plugin can only work using the ‘sunrise’ drop in structure, so a site administrator must do the following:
 Copy the sunrise.php file of this plugin to the wp-content directory, or add its code to an existing sunrise.php, ensuring it does not conflict.
-Set the sunrise constant in wp-config.php, somewhere below the multisite constants would be appropriate: define('SUNRISE', true);
+Set the sunrise constant in wp-config.php, somewhere below the multisite constants would be appropriate:
+define('SUNRISE', true);
 
 Multisite-landingpages creates a small table holding the domain names put in by subsite admins. The domain column is the primary key so queries should run fast even with many domains.
 
 Subsite administrators must put a TXT record in their DNS for any domain they want to add to prove they own it. This TXT record is unique for each subsite and installation (it uses the uuid4 functionality) and displayed to the administrator on the settings page.
 If the TXT record is not present the domain will not be added.
-A cron job runs every hour updating the entries according to the presence of their corresponding TXT records, to account for transfer of ownership.
-To allow for temporary unavailability of DNS servers only after 3 tries a domain is suspended and will not work anymore.
-Or, when someone else adds the domain and proves ownership, the domain is assigned to that subsite (and not visible anymore to the old subsite).
+When the TXT record is no longer found, a warning will be displayed on the settings page next to the entry. The landing page will keep functioning however as long as the domain is correctly pointed at the installation.
+When someone else adds the domain (while proving ownership), the domain is assigned to that subsite, and not visible anymore to the old subsite.
 
 For custom fonts to work the following code must be added to .htaccess:
 
@@ -36,3 +36,9 @@ If the ‘canonicals’ option is checked however the plugin will always activel
 
 ### Note about international domainnames
 International domains, containing utf-8 characters, will be stored in punycode (ascii notation). Either automatically (when available) or they must be put in as such by the user. Upon failure a clear warning will be shown.
+
+### Note about deactivation
+If a subsite administrator deactivates the plugin, its entries in the landingpages / domains table are removed.
+However, to conserve resources on a network deactivation the table is left in tact for the admin to prune. It will be dropped on uninstall.
+The options are removed for each subsite, as long as wp_is_large_network() returns false. For large networks, the admin should cleanup the relevant options. They are prefixed by ‘ruigehond011’.
+

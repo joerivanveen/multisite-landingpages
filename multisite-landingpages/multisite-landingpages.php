@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 0.9.2
+Version: 1.0.0
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '0.9.2');
+\Define('ruigehond011_VERSION', '1.0.0');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -52,7 +52,7 @@ class ruigehond011
         $this->options = \get_option('ruigehond011');
         $options_changed = false;
         if (isset($this->options)) {
-            $this->use_canonical = isset($this->options['use_canonical']) and (true === $this->options['use_canonical']);
+            $this->use_canonical = (isset($this->options['use_canonical']) and (true === $this->options['use_canonical']));
             if ($this->use_canonical) {
                 if (isset($this->options['use_ssl']) and (true === $this->options['use_ssl'])) {
                     $this->canonical_prefix = 'https://';
@@ -80,7 +80,7 @@ class ruigehond011
             $this->txt_record = $this->options['txt_record'];
             // get the database version number, set it when not yet available
             if (\false === isset($this->options['db_version'])) {
-                $this->options['db_version'] = '0.0.0';
+                $this->options['db_version'] = ruigehond011_VERSION;
                 $options_changed = \true;
             }
             $this->db_version = $this->options['db_version'];
@@ -130,7 +130,7 @@ class ruigehond011
     }
 
     /**
-     * Returns a relative url for pages that are accessed on a different domain than the original blog enabling
+     * Returns the url for the current slug updated with the specific domain if applicable enabling
      * ajax calls without the dreaded cross origin errors (as long as people use the recommended get_admin_url())
      * @param $url
      * @return string|string[]
@@ -606,30 +606,9 @@ class ruigehond011
     /**
      * plugin management functions
      */
-    public function updateWhenNecessary()
-    {
-        if (\version_compare($this->db_version, '0.9.1') < 0) {
-            // on busy sites this can be called several times, so suppress the errors
-            $this->wpdb->suppress_errors = true;
-            // the txt_record added to the landingpage table
-            if (\is_null($this->wpdb->get_var("SHOW COLUMNS FROM $this->table_name LIKE 'txt_record'"))) {
-                $sql = 'ALTER TABLE ' . $this->table_name .
-                    ' ADD COLUMN txt_record VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' AFTER post_name;';
-                if ($this->wpdb->query($sql)) {
-                    // register current version, but keep incremental updates (for when someone skips a version)
-                    $this->options['db_version'] = '0.9.1';
-                    \update_option('ruigehond011', $this->options);
-                    \set_transient('ruigehond011_warning',
-                        \sprintf(__('multisite-landingpages updated database to %s', 'multisite-landingpages'), '0.9.1'));
-                }
-            }
-            $this->wpdb->suppress_errors = false;
-        }
-
-    }
-
     public function activate($networkwide)
     {
+        if (\false === is_multisite()) wp_die('Multisite-landingpages can only be activated on a multisite install');
         // add cross origin for fonts to the htaccess
         if (!$this->htaccessContainsLines()) {
             $htaccess = get_home_path() . ".htaccess";
@@ -673,6 +652,26 @@ class ruigehond011
             \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
         }*/
     }
+    public function updateWhenNecessary()
+    {
+        if (\version_compare($this->db_version, '0.9.1') < 0) {
+            // on busy sites this can be called several times, so suppress the errors
+            $this->wpdb->suppress_errors = true;
+            // the txt_record added to the landingpage table
+            if (\is_null($this->wpdb->get_var("SHOW COLUMNS FROM $this->table_name LIKE 'txt_record'"))) {
+                $sql = 'ALTER TABLE ' . $this->table_name .
+                    ' ADD COLUMN txt_record VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' AFTER post_name;';
+                if ($this->wpdb->query($sql)) {
+                    // register current version, but keep incremental updates (for when someone skips a version)
+                    $this->options['db_version'] = '0.9.1';
+                    \update_option('ruigehond011', $this->options);
+                    \set_transient('ruigehond011_warning',
+                        \sprintf(__('multisite-landingpages updated database to %s', 'multisite-landingpages'), '0.9.1'));
+                }
+            }
+            $this->wpdb->suppress_errors = false;
+        }
+    }
 
     public function deactivate($network_deactivate)
     {
@@ -685,7 +684,7 @@ class ruigehond011
                     // remove active plugin (apparently this is not done automatically)
                     $plugins = \get_option('active_plugins');
                     // remove this as an active plugin: multisite-landingpages/multisite-landingpages.php
-                    if (($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins)) !== false) {
+                    if (\false !==  ($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins))) {
                         unset($plugins[$key]);
                         \update_option('active_plugins', $plugins);
                     }
