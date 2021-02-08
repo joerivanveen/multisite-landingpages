@@ -11,7 +11,7 @@ sunrise();
  * when not found in the table, nothing is changed, let WordPress handle it further
  * @returns void
  * @since 0.1.0
- * @since 0.9.1 only approved (any non-0 value) domains are considered, a cron job is used to (dis)approve entries
+ * @since 0.9.1 only approved (any non-0 value) domains are considered
  */
 function sunrise()
 {
