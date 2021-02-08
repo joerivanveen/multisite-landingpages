@@ -39,6 +39,6 @@ International domains, containing utf-8 characters, will be stored in punycode (
 
 ### Note about deactivation
 If a subsite administrator deactivates the plugin, its entries in the landingpages / domains table are removed.
-However, to conserve resources on a network deactivation the table is left in tact for the admin to prune. It will be dropped on uninstall.
-The options are removed for each subsite, as long as wp_is_large_network() returns false. For large networks, the admin should cleanup the relevant options. They are prefixed by ‘ruigehond011’.
+On a network deactivation the table is left in tact for the admin to prune, to conserve resources. It will be dropped on uninstall.
+On a network deactivation the options are removed for each subsite, as long as wp_is_large_network() returns false. For large networks, the admin should cleanup the relevant options. They are prefixed by ‘ruigehond011’.
 

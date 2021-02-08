@@ -71,10 +71,10 @@ class ruigehond011
                     $rows = \null;
                 }
             }
-            $this->remove_sitename_from_title = isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']);
+            $this->remove_sitename_from_title = (isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']));
             // get the txt_record value or set it when not available yet
             if (\false === isset($this->options['txt_record'])) { // add the guid to use for txt_record for this subsite
-                $this->options['txt_record'] = 'multisite-landingpages-' . \wp_generate_uuid4();
+                $this->options['txt_record'] = 'multisite-landingpages=' . \wp_generate_uuid4();
                 $options_changed = \true;
             }
             $this->txt_record = $this->options['txt_record'];
@@ -405,7 +405,7 @@ class ruigehond011
         // add the checkboxes
         foreach (array(
                      'use_canonical' => __('Use domains as canonical url', 'multisite-landingpages'),
-                     'use_www' => __('Canonicals must include www', 'multisite-landingpages'),
+                     'use_www' => __('Canonicals must include www (incompatible with subdomains)', 'multisite-landingpages'),
                      'use_ssl' => __('All domains have an SSL certificate installed', 'multisite-landingpages'),
                      'remove_sitename' => __('Use only post title as document title', 'multisite-landingpages'),
                  ) as $setting_name => $short_text) {
@@ -538,6 +538,12 @@ class ruigehond011
                 if (\is_array($record) and isset($record['txt']) and \trim($record['txt']) === $txt_value) {
                     return \true;
                 }
+            }
+        }
+        // maybe this is a subdomain, check if a domainname remains after we removed the first thingie, and check recursively
+        if (\false !== ($pos = \strpos($domain, '.')) and $domain = \substr($domain,$pos+1)){
+            if (\false !== \strpos($domain, '.')) {
+                return $this->checkTxtRecord($domain, $txt_value);
             }
         }
         return \false;
