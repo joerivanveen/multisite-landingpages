@@ -528,6 +528,7 @@ class ruigehond011
      */
     public function install()
     {
+        if (\false === \is_multisite()) die('Only for multisite installs');
         // add cross origin for fonts to the htaccess
         if (!$this->htaccessContainsLines()) {
             $htaccess = get_home_path() . ".htaccess";
