@@ -1,12 +1,6 @@
 <?php
 
 namespace ruigehond011;
-/**
- * configurable variable $ruigehond011_minute: after entering a landingpage domain the site must be visited
- * within this number of minutes to validate the domain, integers only.
- */
-global $ruigehond011_minute;
-$ruigehond011_minute = 10;
 // call the function that selects blog based on the domain
 sunrise();
 // intro to multisite setup sunrise stuff:
@@ -17,46 +11,31 @@ sunrise();
  * when not found in the table, nothing is changed, let WordPress handle it further
  * @returns void
  * @since 0.1.0
+ * @since 0.9.1 only approved (any non-0 value) domains are considered, a cron job is used to (dis)approve entries
  */
 function sunrise()
 {
-    global $wpdb, $ruigehond011_minute;
+    global $wpdb;
     // get the domain
     $domain = \strtolower(\stripslashes($_SERVER['HTTP_HOST']));
     // remove the port number if present
-    if (\false !== \strpos($domain, ':')) {
-        $domain = \explode(':', $domain)[0];
-    }
+    if (\false !== \strpos($domain, ':')) $domain = \explode(':', $domain)[0];
+    // remove www if present
+    if (\strpos($domain, 'www.') === 0) $domain = \substr($domain, 4);
 
     // if the domain is in the landingpage table, setup the global site and blog name for ms-settings.php
     // else do nothing, it will be setup like this multisite works normally
     $base_prefix = $wpdb->base_prefix;
     $table_name = $base_prefix . 'ruigehond011_landingpages';
-    $rows = $wpdb->get_results('SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, rh.blog_id, rh.post_name, rh.date_created > DATE_SUB(now(), INTERVAL ' .
-        $ruigehond011_minute . ' MINUTE) AS is_new, rh.approved FROM ' .
+    $rows = $wpdb->get_results('SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, rh.post_name FROM ' .
         $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id WHERE rh.domain = \'' .
-        \addslashes($domain) . '\';');
+        \addslashes($domain) . '\' and rh.approved <> \'0\';'); // any approved value that is not 0 is ok
 
 //    var_dump($wpdb->last_query);
 //    die();
 
     if (\count($rows) === 1) {
         $row = $rows[0];
-        if ($row->approved !== '1') { // approve it when it is recent
-            if ($row->is_new === '1') {
-                $wpdb->query('UPDATE ' . $table_name .
-                    ' SET approved = 1 WHERE domain = \'' . \addslashes($row->landing_domain) . '\';');
-                if ($wpdb->rows_affected !== 1) {
-                    wp_die('Sunrise() error in multisite-landingpage');
-                }
-            } else {
-                $rows = \null;
-                // (attempt to) remove the entry
-                $wpdb->query('DELETE FROM ' . $table_name .
-                    ' WHERE domain = \'' . \addslashes($row->landing_domain) . '\';');
-                return;
-            }
-        }
         // set the required global object for ruigehond011 subsite part of the plugin
         global $ruigehond011_slug;
         $ruigehond011_slug = $row->post_name;

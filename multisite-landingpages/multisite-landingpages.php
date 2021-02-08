@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 0.9.0
+Version: 1.0.0
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,11 +12,14 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '0.9.0');
+\Define('ruigehond011_VERSION', '1.0.0');
 // Register hooks for plugin management, functions are at the bottom of this file.
-\register_activation_hook(__FILE__, array(new ruigehond011(), 'install'));
+\register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
+// setup cron hook that checks dns txt records
+// https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
+//\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Startup the plugin
 \add_action('init', array(new ruigehond011(), 'initialize'));
 
@@ -24,7 +27,8 @@ Domain Path: /languages/
 class ruigehond011
 {
     private $options, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
-    private $slug, $minute, $wpdb, $blog_id, $table_name, $locale, $post_types = array(); // cached values
+    private $slug, $minute, $wpdb, $blog_id, $txt_record, $table_name, $locale, $post_types = array(); // cached values
+    private $db_version;
 
     /**
      * ruigehond011 constructor
@@ -46,8 +50,9 @@ class ruigehond011
         $this->minute = (isset($ruigehond011_minute)) ? \intval($ruigehond011_minute) : 10;
         // set the options for the current subsite
         $this->options = \get_option('ruigehond011');
+        $options_changed = false;
         if (isset($this->options)) {
-            $this->use_canonical = isset($this->options['use_canonical']) and (true === $this->options['use_canonical']);
+            $this->use_canonical = (isset($this->options['use_canonical']) and (true === $this->options['use_canonical']));
             if ($this->use_canonical) {
                 if (isset($this->options['use_ssl']) and (true === $this->options['use_ssl'])) {
                     $this->canonical_prefix = 'https://';
@@ -66,7 +71,23 @@ class ruigehond011
                     $rows = \null;
                 }
             }
-            $this->remove_sitename_from_title = isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']);
+            $this->remove_sitename_from_title = (isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']));
+            // get the txt_record value or set it when not available yet
+            if (\false === isset($this->options['txt_record'])) { // add the guid to use for txt_record for this subsite
+                $this->options['txt_record'] = 'multisite-landingpages=' . \wp_generate_uuid4();
+                $options_changed = \true;
+            }
+            $this->txt_record = $this->options['txt_record'];
+            // get the database version number, set it when not yet available
+            if (\false === isset($this->options['db_version'])) {
+                $this->options['db_version'] = ruigehond011_VERSION;
+                $options_changed = \true;
+            }
+            $this->db_version = $this->options['db_version'];
+            // update the options if they were changed during construction
+            if (\true === $options_changed) {
+                \update_option('ruigehond011', $this->options);
+            }
         }
         // https://wordpress.stackexchange.com/a/89965
         //if (isset($this->locale)) add_filter('locale', array($this, 'getLocale'), 1, 1);
@@ -82,13 +103,15 @@ class ruigehond011
         // applicable to avoid cross origin errors
         \add_filter('admin_url', array($this, 'adminUrl'));
         if (is_admin()) {
+            // seems excessive but no better stable solution found yet
+            // update check only on admin, so make sure to be admin after updating :-)
+            $this->updateWhenNecessary();
             \load_plugin_textdomain('multisite-landingpages', false, \dirname(\plugin_basename(__FILE__)) . '/languages/');
             \add_action('admin_init', array($this, 'settings'));
             \add_action('admin_menu', array($this, 'menuitem')); // necessary to have the page accessible to user
             \add_filter('plugin_action_links_' . \plugin_basename(__FILE__), array($this, 'settingslink')); // settings link on plugins page
             if ($this->onSettingsPage()) ruigehond011_display_warning();
-        } else {
-            // original
+        } else { // regular visitor
             \add_action('parse_request', array($this, 'get')); // passes WP_Query object
             if ($this->use_canonical) {
                 // fix the canonical url for functions that get the url, subject to additions...
@@ -107,7 +130,7 @@ class ruigehond011
     }
 
     /**
-     * Returns a relative url for pages that are accessed on a different domain than the original blog enabling
+     * Returns the url for the current slug updated with the specific domain if applicable enabling
      * ajax calls without the dreaded cross origin errors (as long as people use the recommended get_admin_url())
      * @param $url
      * @return string|string[]
@@ -191,10 +214,9 @@ class ruigehond011
      */
     public function fixUrl($url) //, and $post if arguments is set to 2 in stead of one in add_filter (during initialize)
     {
-        if (\false !== ($index = \strrpos($url, '/', -2))) { // skip over the trailing slash
-            $url = \substr($url, $index + 1);
-        }
-        $proposed_slug = \str_replace('/', '', $url);
+        // -2 = skip over trailing slash, if no slashes are found, $url must be a clean slug, else, extract the last part
+        $proposed_slug = (\false === ($index = \strrpos($url, '/', -2))) ? $url : \substr($url, $index + 1);
+        $proposed_slug = \trim($proposed_slug, '/');
 
         if (isset($this->canonicals[$proposed_slug])) {
             $url = $this->canonical_prefix . $this->canonicals[$proposed_slug];
@@ -267,8 +289,11 @@ class ruigehond011
             __('New landingpage', 'multisite-landingpages'),
             function () {
                 echo '<p>';
-                echo __('In the DNS settings of your desired domain point it at this WordPress installation.', 'multisite-landingpages');
-                echo ' ';
+                echo __('In the DNS settings of your desired domain point the A and / or AAAA records at this WordPress installation.', 'multisite-landingpages');
+                echo '<br/>';
+                echo \sprintf(__('Add a TXT record with value: %s', 'multisite-landingpages'),
+                    '<strong>' . $this->txt_record . '</strong>');
+                echo '<br/>';
                 echo __('Fill in the domain name (without protocol or irrelevant subdomains) below to add it.', 'multisite-landingpages');
                 echo ' ';
                 echo __('The domain must be reachable from this WordPress installation, allow some time for the DNS settings to propagate.', 'multisite-landingpages');
@@ -310,9 +335,9 @@ class ruigehond011
             'ruigehond011'
         );
         // actual landing pages here
-        $rows = $this->wpdb->get_results('SELECT domain, post_name, date_created > DATE_SUB(now(), INTERVAL ' .
-            $this->minute . ' MINUTE) AS is_new, approved FROM ' . $this->table_name . ' WHERE blog_id = ' .
-            $this->blog_id . ' ORDER BY domain;');
+        $rows = $this->wpdb->get_results('SELECT domain, post_name, approved FROM ' .
+            $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ' ORDER BY domain;');
+        $txt_record = $this->txt_record;
         foreach ($rows as $index => $row) {
             $domain = $row->domain;
             $slug = $row->post_name;
@@ -322,6 +347,7 @@ class ruigehond011
                 function ($args) {
                     $domain = $args['domain'];
                     $slug = $args['slug'];
+                    $approved = \boolval($args['approved']);
                     echo '<input type="text" name="ruigehond011[';
                     echo $domain;
                     echo ']" value="';
@@ -331,7 +357,7 @@ class ruigehond011
                     echo '<input type="submit" class="button" value="×" data-domain="';
                     echo $domain;
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
-                    if ($args['approved']) {
+                    if (\true === $approved) {
                         echo '<span class="notice-success notice">';
                         echo __('valid', 'multisite-landingpages');
                         echo '</span>';
@@ -340,13 +366,13 @@ class ruigehond011
                             echo __('slug loaded in canonicals', 'multisite-landingpages');
                             echo ')';
                         }
-                    } elseif ($args['is_new']) {
-                        echo '<span class="notice-warning notice">';
-                        echo __('visit your site with this domain to validate', 'multisite-landingpages');
-                        echo '</span>';
-                    } else {
+                    /*} elseif ($approved === 0) {
                         echo '<span class="notice-error notice">';
-                        echo __('expired', 'multisite-landingpages');
+                        echo __('suspended, check your TXT record', 'multisite-landingpages');
+                        echo '</span>';*/
+                    } else {
+                        echo '<span class="notice-warning notice">';
+                        echo __('TXT record could not be verified', 'multisite-landingpages');
                         echo '</span>';
                     }
                 },
@@ -354,8 +380,7 @@ class ruigehond011
                 'multisite_landingpages_domains',
                 [
                     'slug' => $slug,
-                    'is_new' => $row->is_new,
-                    'approved' => $row->approved,
+                    'approved' => $this->checkTxtRecord($domain, $txt_record),
                     'in_canonicals' => isset($this->canonicals[$slug]),
                     'domain' => $domain,
                     'class' => 'ruigehond_row',
@@ -380,7 +405,7 @@ class ruigehond011
         // add the checkboxes
         foreach (array(
                      'use_canonical' => __('Use domains as canonical url', 'multisite-landingpages'),
-                     'use_www' => __('Canonicals must include www', 'multisite-landingpages'),
+                     'use_www' => __('Canonicals must include www (incompatible with subdomains)', 'multisite-landingpages'),
                      'use_ssl' => __('All domains have an SSL certificate installed', 'multisite-landingpages'),
                      'remove_sitename' => __('Use only post title as document title', 'multisite-landingpages'),
                  ) as $setting_name => $short_text) {
@@ -431,7 +456,7 @@ class ruigehond011
     }
 
     /**
-     * Validates settings, especially formats the locales to an object ready for use before storing the option
+     * Validates settings, handles saving and deleting of the landingpage domains directly
      * @param $input
      * @return array
      * @since 0.9.0
@@ -450,23 +475,32 @@ class ruigehond011
                     break;
                 case 'domain_new':
                     if ($value === '') break; // empty values don’t need to be processed
+                    // remove www
+                    if (\strpos($value, 'www.') === 0) $value = \substr($value, 4);
                     // test domain utf-8 characters: όνομα.gr
                     if (\function_exists('idn_to_ascii')) {
                         $value = \idn_to_ascii($value, IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46);
                     }
-                    if (\dns_check_record($value, 'A') or \dns_check_record($value, 'AAAA')) {
-                        // if the domain exists, insert it in the landingpage table
+                    // @since 0.9.1: get the txt record, only then the domain is considered valid
+                    if (\true === $this->checkTxtRecord($value, $this->txt_record)) {
+                        // if the txt record exists remove any previous entries from the landingpage table
+                        $this->wpdb->query('DELETE FROM ' . $this->table_name .
+                            ' WHERE domain = \'' . \addslashes($value) . '\'');
+                        // and insert this one into the landingpage table
                         $site_id = \get_current_network_id();
                         $this->wpdb->query('INSERT INTO ' . $this->table_name .
-                            ' (domain, blog_id, site_id, post_name) VALUES(\'' .
-                            \addslashes($value) . '\', ' . $this->blog_id . ',' . $site_id . ', \'\')');
+                            ' (domain, blog_id, site_id, post_name, txt_record, approved) VALUES(\'' .
+                            \addslashes($value) . '\', ' . $this->blog_id . ',' . $site_id . ', \'\', \'' .
+                            \addslashes($this->txt_record) . '\', 1)');
+                        //var_dump($this->wpdb->last_query);
+                        //die(' opa');
                     } else { // message the user...
                         if (\function_exists('idn_to_ascii')) {
                             \set_transient('ruigehond011_warning',
-                                __('Domain name not found, DNS propagation may take some time', 'multisite-landingpages'));
+                                __('Please add the required TXT record, note that DNS propagation can take several hours', 'multisite-landingpages'));
                         } else {
                             \set_transient('ruigehond011_warning',
-                                __('Domain name not found, DNS propagation may take some time', 'multisite-landingpages') .
+                                __('Please add the required TXT record, note that DNS propagation can take several hours', 'multisite-landingpages') .
                                 '<br/><em>' .
                                 __('Please note: international domainnames must be put in using ascii notation (punycode)', 'multisite-landingpages') .
                                 '</em>');
@@ -486,6 +520,33 @@ class ruigehond011
         }
 
         return $options;
+    }
+
+    /**
+     * @param $domain
+     * @param $txt_value
+     * @return bool whether the txt_value was found in the txt records for this $domain
+     */
+    public function checkTxtRecord($domain, $txt_value)
+    {
+        if (\is_array(($dns_records = \dns_get_record($domain, DNS_TXT)))) {
+            // check for the record
+            //var_dump($txt_value);
+            //var_dump($dns_records);
+            //die(' opa');
+            foreach ($dns_records as $index => $record) {
+                if (\is_array($record) and isset($record['txt']) and \trim($record['txt']) === $txt_value) {
+                    return \true;
+                }
+            }
+        }
+        // maybe this is a subdomain, check if a domainname remains after we removed the first thingie, and check recursively
+        if (\false !== ($pos = \strpos($domain, '.')) and $domain = \substr($domain,$pos+1)){
+            if (\false !== \strpos($domain, '.')) {
+                return $this->checkTxtRecord($domain, $txt_value);
+            }
+        }
+        return \false;
     }
 
     public function settingspage()
@@ -523,12 +584,37 @@ class ruigehond011
         );
     }
 
+    public function cronjob()
+    {
+        // we’re checking it in the admin interface: more direct and consumes less resources in large networks
+        return;
+        $dns_records = $this->wpdb->get_results('SELECT domain, txt_record, approved FROM ' . $this->table_name);
+        // for each record, you need to check if the txt is available, update the approved value if it changed
+        foreach ($dns_records as $index => $record) {
+            if (\true === $this->checkTxtRecord($record->domain, $record->txt_record)) {
+                if (\intval($record->approved) !== 1) { // re-approve it / reset it
+                    $this->wpdb->query('UPDATE ' . $this->table_name .
+                        ' SET approved = 1 WHERE domain = \'' . \addslashes($record->domain) . '\'');
+                }
+            } elseif (($approved = \intval($record->approved)) > 0) {
+                if ($approved === 3) { // disapprove it
+                    $this->wpdb->query('UPDATE ' . $this->table_name .
+                        ' SET approved = 0 WHERE domain = \'' . \addslashes($record->domain) . '\'');
+                } else { // count the approved value one up
+                    $approved = \intval($record->approved) + 1;
+                    $this->wpdb->query('UPDATE ' . $this->table_name .
+                        ' SET approved = ' . \strval($approved) . ' WHERE domain = \'' . \addslashes($record->domain) . '\'');
+                }
+            }
+        }
+    }
+
     /**
      * plugin management functions
      */
-    public function install()
+    public function activate($networkwide)
     {
-        if (\false === \is_multisite()) die('Only for multisite installs');
+        if (\false === is_multisite()) wp_die('Multisite-landingpages can only be activated on a multisite install');
         // add cross origin for fonts to the htaccess
         if (!$this->htaccessContainsLines()) {
             $htaccess = get_home_path() . ".htaccess";
@@ -559,57 +645,101 @@ class ruigehond011
 						blog_id BIGINT NOT NULL,
 						site_id BIGINT NOT NULL,
 						post_name VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\',
+						txt_record VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\',
 						date_created TIMESTAMP NOT NULL DEFAULT NOW(),
 						approved TINYINT NOT NULL DEFAULT 0)
 					DEFAULT CHARACTER SET = utf8mb4
 					COLLATE = utf8mb4_bin;
 					';
             $this->wpdb->query($sql);
-            //to approve: date_created > DATE_SUB(now(), INTERVAL 10 MINUTE)
+        }
+        // add the cron job that checks the dns txt records, if not already active
+        /*if (\false === \wp_next_scheduled('ruigehond011_check_dns')) {
+            \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
+        }*/
+    }
+    public function updateWhenNecessary()
+    {
+        if (\version_compare($this->db_version, '0.9.1') < 0) {
+            // on busy sites this can be called several times, so suppress the errors
+            $this->wpdb->suppress_errors = true;
+            // the txt_record added to the landingpage table
+            if (\is_null($this->wpdb->get_var("SHOW COLUMNS FROM $this->table_name LIKE 'txt_record'"))) {
+                $sql = 'ALTER TABLE ' . $this->table_name .
+                    ' ADD COLUMN txt_record VARCHAR(200) CHARACTER SET \'utf8mb4\' COLLATE \'utf8mb4_unicode_520_ci\' AFTER post_name;';
+                if ($this->wpdb->query($sql)) {
+                    // register current version, but keep incremental updates (for when someone skips a version)
+                    $this->options['db_version'] = '0.9.1';
+                    \update_option('ruigehond011', $this->options);
+                    \set_transient('ruigehond011_warning',
+                        \sprintf(__('multisite-landingpages updated database to %s', 'multisite-landingpages'), '0.9.1'));
+                }
+            }
+            $this->wpdb->suppress_errors = false;
         }
     }
 
-    public function deactivate()
+    public function deactivate($network_deactivate)
     {
-        // deactivate can be done per site
-        // remove options
-        \delete_option('ruigehond011');
-        \delete_option('ruigehond011_htaccess_warning'); // should this be present...
-        // remove entries in the landingpage table as well
-        if (isset($this->blog_id)) {
-            $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
+        // deactivate can be done per site or the whole network
+        if (\true === $network_deactivate) { // loop through all sites
+            if (\false === \wp_is_large_network()) {
+                $blogs = get_sites();
+                foreach ($blogs as $index => $blog) {
+                    \switch_to_blog($blog->blog_id);
+                    // remove active plugin (apparently this is not done automatically)
+                    $plugins = \get_option('active_plugins');
+                    // remove this as an active plugin: multisite-landingpages/multisite-landingpages.php
+                    if (\false !==  ($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins))) {
+                        unset($plugins[$key]);
+                        \update_option('active_plugins', $plugins);
+                    }
+                    // remove options
+                    \delete_option('ruigehond011');
+                    \delete_option('ruigehond011_htaccess_warning'); // should this be present...
+                    \restore_current_blog(); // NOTE restore everytime to prevent inconsistent state
+                }
+            }
+        } else {
+            // remove options and entries for this blog only
+            \delete_option('ruigehond011');
+            \delete_option('ruigehond011_htaccess_warning'); // should this be present...
+            // remove entries in the landingpage table as well
+            // not necessary for network deactivate as the table is dropped on uninstall
+            if (isset($this->blog_id)) {
+                $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
+            }
         }
     }
 
-    public function uninstall()
+    public function network_uninstall()
     {
+        // deactivate all instances
+        $this->deactivate(\true);
         // uninstall is always a network remove, so you can safely remove the proprietary table here
         if ($this->wpdb->get_var('SHOW TABLES LIKE \'' . $this->table_name . '\';') === $this->table_name) {
             $this->wpdb->query('DROP TABLE ' . $this->table_name . ';');
         }
+        // forget about the cron job as well
+        $timestamp = \wp_next_scheduled('ruigehond011_check_dns');
+        \wp_unschedule_event($timestamp, 'ruigehond011_check_dns'); // also all future events are unscheduled
     }
-
 }
 
-/**
- * uninstall proxy function
- */
 function ruigehond011_uninstall()
 {
     $hond = new ruigehond011();
-    $hond->uninstall();
+    $hond->network_uninstall();
 }
 
 function ruigehond011_display_warning()
 {
     /* Check transient, if available display it */
-    if ($warning = \get_transient('ruigehond011_warning')) {
-        echo '<div class="notice notice-warning is-dismissible"><p>' . $warning . '</p></div>';
+    if (($warning = \get_transient('ruigehond011_warning'))) {
+        echo '<div class="notice notice-warning is-dismissible"><p>';
+        echo $warning;
+        echo '</p></div>';
         /* Delete transient, only display this notice once. */
         \delete_transient('ruigehond011_warning');
-        /* remember it as an option though, for the settings page as reference
-        $option = get_option('ruigehond011');
-        $option['warning'] = $warning;
-        update_option('ruigehond011', $option, true);*/
     }
 }
