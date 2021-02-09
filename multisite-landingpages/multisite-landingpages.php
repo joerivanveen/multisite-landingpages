@@ -611,7 +611,7 @@ class ruigehond011
      */
     public function activate($networkwide)
     {
-        if (\false === is_multisite()) wp_die('Multisite-landingpages can only be activated on a multisite install');
+        if (\false === is_multisite()) wp_die(__('Multisite-landingpages can only be activated on a multisite install', 'multisite-landingpages'));
         // add cross origin for fonts to the htaccess
         if (!$this->htaccessContainsLines()) {
             $htaccess = get_home_path() . ".htaccess";
