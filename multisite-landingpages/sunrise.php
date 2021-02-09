@@ -1,6 +1,9 @@
 <?php
 
 namespace ruigehond011;
+// global config flag(s) for the plugin to pickup
+global $ruigehond011_txt_record_mandatory;
+$ruigehond011_txt_record_mandatory = false;
 // call the function that selects blog based on the domain
 sunrise();
 // intro to multisite setup sunrise stuff:
@@ -29,10 +32,11 @@ function sunrise()
     $table_name = $base_prefix . 'ruigehond011_landingpages';
     $rows = $wpdb->get_results('SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, rh.post_name FROM ' .
         $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id WHERE rh.domain = \'' .
-        \addslashes($domain) . '\' and rh.approved <> \'0\';'); // any approved value that is not 0 is ok
+        \addslashes($domain) . '\';');
 
-//    var_dump($wpdb->last_query);
-//    die();
+    //var_dump($wpdb->last_query);
+    //var_dump($rows);
+    //die();
 
     if (\count($rows) === 1) {
         $row = $rows[0];

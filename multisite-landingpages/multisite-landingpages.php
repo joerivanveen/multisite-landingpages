@@ -38,11 +38,12 @@ class ruigehond011
     public function __construct()
     {
         // cache some global vars for this instance
-        global $ruigehond011_slug, $ruigehond011_minute, $wpdb, $blog_id;
+        global $ruigehond011_slug, $ruigehond011_txt_record_mandatory, $ruigehond011_minute, $wpdb, $blog_id;
         // use base prefix to make a table shared by all the blogs
         $this->table_name = $wpdb->base_prefix . 'ruigehond011_landingpages';
         $this->wpdb = $wpdb;
         $this->blog_id = isset($blog_id) ? \intval($blog_id) : \null;
+        $this->txt_record_mandatory = (isset($ruigehond011_txt_record_mandatory)) ? \boolval($ruigehond011_txt_record_mandatory) : \true;
         // get the slug we are using for this request, as far as the plugin is concerned
         // set the slug to the value found in sunrise.php, or to the regular slug if none was found
         $this->slug = (isset($ruigehond011_slug)) ? $ruigehond011_slug : \trim($_SERVER['REQUEST_URI'], '/');
@@ -291,9 +292,11 @@ class ruigehond011
                 echo '<p>';
                 echo __('In the DNS settings of your desired domain point the A and / or AAAA records at this WordPress installation.', 'multisite-landingpages');
                 echo '<br/>';
-                echo \sprintf(__('Add a TXT record with value: %s', 'multisite-landingpages'),
-                    '<strong>' . $this->txt_record . '</strong>');
-                echo '<br/>';
+                if ($this->txt_record_mandatory) {
+                    echo \sprintf(__('Add a TXT record with value: %s', 'multisite-landingpages'),
+                        '<strong>' . $this->txt_record . '</strong>');
+                    echo '<br/>';
+                }
                 echo __('Fill in the domain name (without protocol or irrelevant subdomains) below to add it.', 'multisite-landingpages');
                 echo ' ';
                 echo __('The domain must be reachable from this WordPress installation, allow some time for the DNS settings to propagate.', 'multisite-landingpages');
@@ -358,18 +361,11 @@ class ruigehond011
                     echo $domain;
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
                     if (\true === $approved) {
-                        echo '<span class="notice-success notice">';
-                        echo __('valid', 'multisite-landingpages');
-                        echo '</span>';
                         if ($args['in_canonicals']) {
-                            echo ' (';
+                            echo '<span class="notice-success notice">';
                             echo __('slug loaded in canonicals', 'multisite-landingpages');
-                            echo ')';
+                            echo '</span>';
                         }
-                    /*} elseif ($approved === 0) {
-                        echo '<span class="notice-error notice">';
-                        echo __('suspended, check your TXT record', 'multisite-landingpages');
-                        echo '</span>';*/
                     } else {
                         echo '<span class="notice-warning notice">';
                         echo __('TXT record could not be verified', 'multisite-landingpages');
@@ -529,6 +525,7 @@ class ruigehond011
      */
     public function checkTxtRecord($domain, $txt_value)
     {
+        if (\false === $this->txt_record_mandatory) return \true;
         if (\is_array(($dns_records = \dns_get_record($domain, DNS_TXT)))) {
             // check for the record
             //var_dump($txt_value);
@@ -541,7 +538,7 @@ class ruigehond011
             }
         }
         // maybe this is a subdomain, check if a domainname remains after we removed the first thingie, and check recursively
-        if (\false !== ($pos = \strpos($domain, '.')) and $domain = \substr($domain,$pos+1)){
+        if (\false !== ($pos = \strpos($domain, '.')) and $domain = \substr($domain, $pos + 1)) {
             if (\false !== \strpos($domain, '.')) {
                 return $this->checkTxtRecord($domain, $txt_value);
             }
@@ -658,6 +655,7 @@ class ruigehond011
             \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
         }*/
     }
+
     public function updateWhenNecessary()
     {
         if (\version_compare($this->db_version, '0.9.1') < 0) {
@@ -690,7 +688,7 @@ class ruigehond011
                     // remove active plugin (apparently this is not done automatically)
                     $plugins = \get_option('active_plugins');
                     // remove this as an active plugin: multisite-landingpages/multisite-landingpages.php
-                    if (\false !==  ($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins))) {
+                    if (\false !== ($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins))) {
                         unset($plugins[$key]);
                         \update_option('active_plugins', $plugins);
                     }
