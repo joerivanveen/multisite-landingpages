@@ -4,18 +4,22 @@ You can point a supplementary domain at your installation and have one of your s
 ## Documented working (admin)
 The network administrator does not have any settings.
 Of course, they can ‘network activate’ or deactivate and uninstall this plugin.
+There is a config flag in the sunrise.php file however, called ruigehond011_txt_record_mandatory.
+If you need users to validate their domains set it to \true, if you don’t set it to \false
 
-However, this plugin can only work using the ‘sunrise’ drop in structure, so a site administrator must do the following:
+This plugin can only work using the ‘sunrise’ drop in structure, so a site administrator must do the following:
 Copy the sunrise.php file of this plugin to the wp-content directory, or add its code to an existing sunrise.php, ensuring it does not conflict.
 Set the sunrise constant in wp-config.php, somewhere below the multisite constants would be appropriate:
 define('SUNRISE', true);
 
 Multisite-landingpages creates a small table holding the domain names put in by subsite admins. The domain column is the primary key so queries should run fast even with many domains.
 
+The following is only true if the global config ruigehond011_txt_record_mandatory = true:
 Subsite administrators must put a TXT record in their DNS for any domain they want to add to prove they own it. This TXT record is unique for each subsite and installation (it uses the uuid4 functionality) and displayed to the administrator on the settings page.
 If the TXT record is not present the domain will not be added.
 When the TXT record is no longer found, a warning will be displayed on the settings page next to the entry. The landing page will keep functioning however as long as the domain is correctly pointed at the installation.
-When someone else adds the domain (while proving ownership), the domain is assigned to that subsite, and not visible anymore to the old subsite.
+
+Regardless of settings, when someone else adds the domain (while proving ownership), the domain is assigned to that subsite, and not visible anymore to the old subsite.
 
 For custom fonts to work the following code must be added to .htaccess:
 
