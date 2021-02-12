@@ -50,7 +50,7 @@ class ruigehond011
             if (\is_writable(RUIGEHOND011_WP_ROCKET_CACHE_DIR)) {
                 $this->bust_cache_dir = RUIGEHOND011_WP_ROCKET_CACHE_DIR;
             } else {
-                \set_transient('ruigehond011_warning', 'Cache bust directory is not writable or doesn’t exist');
+                \set_transient('ruigehond011_warning', 'Multisite Landingpages says: cache bust directory is not writable or doesn’t exist');
             }
         }
         // get the slug we are using for this request, as far as the plugin is concerned
@@ -515,16 +515,29 @@ class ruigehond011
                 case '__delete__':
                     $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE domain = \'' .
                         \addslashes($value) . '\';');
+                    $this->bustCache($value);
                     break;
                 default: // this must be a slug change
                     // update the domain - slug combination
                     $this->wpdb->query('UPDATE ' . $this->table_name . ' SET post_name = \'' .
                         \addslashes(\sanitize_title($value)) . '\' WHERE domain = \'' .
                         \addslashes($key) . '\';');
+                    $this->bustCache($key);
             }
         }
 
         return $options;
+    }
+
+    /**
+     * @param $domain
+     * @since 1.2.0 clears WP Rocket cache for the domain
+     */
+    public function bustCache($domain) {
+        if ($this->bust_cache) {
+            global $wp_filesystem;
+            $wp_filesystem->rmdir(\trailingslashit($this->bust_cache_dir) . $domain);
+        }
     }
 
     /**
