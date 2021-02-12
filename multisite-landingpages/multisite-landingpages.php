@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.1.0
+Version: 1.2.0
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '1.1.0');
+\Define('ruigehond011_VERSION', '1.2.0');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -29,7 +29,7 @@ class ruigehond011
     private $options, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
     private $slug, $minute, $wpdb, $blog_id, $txt_record, $table_name, $locale, $post_types = array(); // cached values
     private $db_version;
-    private $txt_record_mandatory, $bust_cache, $bust_cache_dir;
+    private $txt_record_mandatory, $manage_cache, $cache_dir;
 
     /**
      * ruigehond011 constructor
@@ -46,11 +46,12 @@ class ruigehond011
         $this->blog_id = isset($blog_id) ? \intval($blog_id) : \null;
         $this->txt_record_mandatory = (\Defined('RUIGEHOND011_TXT_RECORD_MANDATORY')) ?
             \boolval(RUIGEHOND011_TXT_RECORD_MANDATORY) : \true;
-        if (\true === ($this->bust_cache = \Defined('RUIGEHOND011_WP_ROCKET_CACHE_DIR'))) {
+        if (\true === ($this->manage_cache = \Defined('RUIGEHOND011_WP_ROCKET_CACHE_DIR'))) {
             if (\is_writable(RUIGEHOND011_WP_ROCKET_CACHE_DIR)) {
-                $this->bust_cache_dir = RUIGEHOND011_WP_ROCKET_CACHE_DIR;
+                $this->cache_dir = RUIGEHOND011_WP_ROCKET_CACHE_DIR;
             } else {
-                \set_transient('ruigehond011_warning', 'Multisite Landingpages says: cache bust directory is not writable or doesn’t exist');
+                \set_transient('ruigehond011_warning',
+                    __('Cache bust directory is not writable or doesn’t exist', 'multisite-landingpages'));
             }
         }
         // get the slug we are using for this request, as far as the plugin is concerned
@@ -227,14 +228,12 @@ class ruigehond011
         // -2 = skip over trailing slash, if no slashes are found, $url must be a clean slug, else, extract the last part
         $proposed_slug = (\false === ($index = \strrpos($url, '/', -2))) ? $url : \substr($url, $index + 1);
         $proposed_slug = \trim($proposed_slug, '/');
-
         if (isset($this->canonicals[$proposed_slug])) {
             $url = $this->canonical_prefix . $this->canonicals[$proposed_slug];
         }
 
         return $url;
     }
-
 
     /**
      * @param $slug
@@ -515,14 +514,15 @@ class ruigehond011
                 case '__delete__':
                     $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE domain = \'' .
                         \addslashes($value) . '\';');
-                    $this->bustCache($value);
+                    $this->removeCacheDirIfNecessary($value);
                     break;
                 default: // this must be a slug change
                     // update the domain - slug combination
                     $this->wpdb->query('UPDATE ' . $this->table_name . ' SET post_name = \'' .
                         \addslashes(\sanitize_title($value)) . '\' WHERE domain = \'' .
                         \addslashes($key) . '\';');
-                    $this->bustCache($key);
+                    // bust cache only if this is a change
+                    if (\false === isset($this->canonicals[$value])) $this->removeCacheDirIfNecessary($key);
             }
         }
 
@@ -533,10 +533,12 @@ class ruigehond011
      * @param $domain
      * @since 1.2.0 clears WP Rocket cache for the domain
      */
-    public function bustCache($domain) {
-        if ($this->bust_cache) {
-            global $wp_filesystem;
-            $wp_filesystem->rmdir(\trailingslashit($this->bust_cache_dir) . $domain);
+    public function removeCacheDirIfNecessary($domain)
+    {
+        if ($this->manage_cache and ($domain = \strval($domain)) !== '') {
+            if (\is_readable(($path = \trailingslashit($this->cache_dir) . $domain))) {
+                ruigehond011_rmdir($path);
+            }
         }
     }
 
@@ -565,6 +567,7 @@ class ruigehond011
                 return $this->checkTxtRecord($domain, $txt_value);
             }
         }
+
         return \false;
     }
 
@@ -710,7 +713,7 @@ class ruigehond011
                     // remove active plugin (apparently this is not done automatically)
                     $plugins = \get_option('active_plugins');
                     // remove this as an active plugin: multisite-landingpages/multisite-landingpages.php
-                    if (\false !== ($key = array_search('multisite-landingpages/multisite-landingpages.php', $plugins))) {
+                    if (\false !== ($key = \array_search('multisite-landingpages/multisite-landingpages.php', $plugins))) {
                         unset($plugins[$key]);
                         \update_option('active_plugins', $plugins);
                     }
@@ -761,5 +764,27 @@ function ruigehond011_display_warning()
         echo '</p></div>';
         /* Delete transient, only display this notice once. */
         \delete_transient('ruigehond011_warning');
+    }
+}
+
+/**
+ * @param $dir
+ * @since 1.2.0 generic remove directory function
+ */
+function ruigehond011_rmdir($dir)
+{
+    if (\is_dir($dir)) {
+        $objects = \scandir($dir);
+        foreach ($objects as $object) {
+            if ($object !== '.' and $object !== '..') {
+                if (\filetype($dir . '/' . $object) === 'dir') {
+                    ruigehond011_rmdir($dir . '/' . $object);
+                } else {
+                    \unlink($dir . '/' . $object);
+                }
+            }
+        }
+        \reset($objects);
+        \rmdir($dir);
     }
 }
