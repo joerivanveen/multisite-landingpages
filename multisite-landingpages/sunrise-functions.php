@@ -35,13 +35,13 @@ function sunrise()
     $table_name = $base_prefix . 'ruigehond011_landingpages';
     if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT) {
         $rows = $wpdb->get_results(
-            'SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, dm.domain AS mapped_domain, rh.post_name FROM ' .
+            'SELECT rh.blog_id, rh.domain AS landing_domain, wp.domain AS multisite_domain, dm.domain AS mapped_domain, rh.post_name FROM ' .
             $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id LEFT OUTER JOIN ' . $base_prefix .
-            'domain_mapping dm ON dm.blog_id = rh.blog_id WHERE dm.active = 1 AND rh.domain = \'' .
+            'domain_mapping dm ON dm.blog_id = rh.blog_id WHERE dm.active = 1 AND dm.is_primary <> 0 AND rh.domain = \'' .
             \addslashes($domain) . '\';');
     } else {
         $rows = $wpdb->get_results(
-            'SELECT rh.domain AS landing_domain, wp.domain AS multisite_domain, NULL AS mapped_domain, rh.post_name FROM ' .
+            'SELECT rh.blog_id, rh.domain AS landing_domain, wp.domain AS multisite_domain, NULL AS mapped_domain, rh.post_name FROM ' .
             $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id WHERE rh.domain = \'' .
             \addslashes($domain) . '\';');
     }
@@ -56,7 +56,12 @@ function sunrise()
         $ruigehond011_slug = $row->post_name;
         // set the HTTP_HOST to the domain of this blog you want, let WordPress handle it further
         // @since 1.2.0 use the mapped domain if relevant
-        $_SERVER['HTTP_HOST'] = (\null === $row->mapped_domain) ? $row->multisite_domain : $row->mapped_domain ;
+        if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT
+            and \get_blog_option($row->blog_id, 'domainmap_frontend_mapping') === 'mapped') {
+            $_SERVER['HTTP_HOST'] = $row->mapped_domain;
+        } else {
+            $_SERVER['HTTP_HOST'] = $row->multisite_domain;
+        }
         $row = \null;
     } // else it must be 0 rows, just let WordPress handle it then
     $rows = \null;
