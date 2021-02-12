@@ -4,7 +4,6 @@ namespace ruigehond011;
 // config params
 if (!Defined('RUIGEHOND011_TXT_RECORD_MANDATORY')) define('RUIGEHOND011_TXT_RECORD_MANDATORY', true);
 if (!Defined('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT')) define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);
-//if (!Defined('RUIGEHOND011_WP_ROCKET_CACHE_DIR')) define('RUIGEHOND011_WP_ROCKET_CACHE_DIR', true);
 // call the function that selects blog based on the domain
 sunrise();
 // intro to multisite setup sunrise stuff:
@@ -37,8 +36,8 @@ function sunrise()
         $rows = $wpdb->get_results(
             'SELECT rh.blog_id, rh.domain AS landing_domain, wp.domain AS multisite_domain, dm.domain AS mapped_domain, rh.post_name FROM ' .
             $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id LEFT OUTER JOIN ' . $base_prefix .
-            'domain_mapping dm ON dm.blog_id = rh.blog_id WHERE dm.active = 1 AND dm.is_primary <> 0 AND rh.domain = \'' .
-            \addslashes($domain) . '\';');
+            'domain_mapping dm ON dm.blog_id = rh.blog_id WHERE dm.active = 1 AND rh.domain = \'' .
+            \addslashes($domain) . '\' ORDER BY dm.is_primary DESC;');
     } else {
         $rows = $wpdb->get_results(
             'SELECT rh.blog_id, rh.domain AS landing_domain, wp.domain AS multisite_domain, NULL AS mapped_domain, rh.post_name FROM ' .
@@ -46,10 +45,11 @@ function sunrise()
             \addslashes($domain) . '\';');
     }
     //var_dump($wpdb->last_query);
+    //echo '<hr/>';
     //var_dump($rows);
     //die();
 
-    if (\count($rows) === 1) {
+    if (\count($rows) > 0) {
         $row = $rows[0];
         // set the required global object for ruigehond011 subsite part of the plugin
         global $ruigehond011_slug;

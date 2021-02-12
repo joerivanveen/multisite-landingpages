@@ -29,6 +29,7 @@ class ruigehond011
     private $options, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
     private $slug, $minute, $wpdb, $blog_id, $txt_record, $table_name, $locale, $post_types = array(); // cached values
     private $db_version;
+    private $txt_record_mandatory, $bust_cache, $bust_cache_dir;
 
     /**
      * ruigehond011 constructor
@@ -37,13 +38,21 @@ class ruigehond011
      */
     public function __construct()
     {
-        // cache some global vars for this instance
-        global $ruigehond011_slug, $ruigehond011_txt_record_mandatory, $ruigehond011_minute, $wpdb, $blog_id;
+        // define some global vars for this instance
+        global $ruigehond011_slug, $ruigehond011_minute, $wpdb, $blog_id;
         // use base prefix to make a table shared by all the blogs
         $this->table_name = $wpdb->base_prefix . 'ruigehond011_landingpages';
         $this->wpdb = $wpdb;
         $this->blog_id = isset($blog_id) ? \intval($blog_id) : \null;
-        $this->txt_record_mandatory = (\Defined('RUIGEHOND011_TXT_RECORD_MANDATORY')) ? \boolval(RUIGEHOND011_TXT_RECORD_MANDATORY) : \true;
+        $this->txt_record_mandatory = (\Defined('RUIGEHOND011_TXT_RECORD_MANDATORY')) ?
+            \boolval(RUIGEHOND011_TXT_RECORD_MANDATORY) : \true;
+        if (\true === ($this->bust_cache = \Defined('RUIGEHOND011_WP_ROCKET_CACHE_DIR'))) {
+            if (\is_writable(RUIGEHOND011_WP_ROCKET_CACHE_DIR)) {
+                $this->bust_cache_dir = RUIGEHOND011_WP_ROCKET_CACHE_DIR;
+            } else {
+                \set_transient('ruigehond011_warning', 'Cache bust directory is not writable or doesn’t exist');
+            }
+        }
         // get the slug we are using for this request, as far as the plugin is concerned
         // set the slug to the value found in sunrise-functions.php, or to the regular slug if none was found
         $this->slug = (isset($ruigehond011_slug)) ? $ruigehond011_slug : \trim($_SERVER['REQUEST_URI'], '/');
