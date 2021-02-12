@@ -43,11 +43,11 @@ class ruigehond011
         $this->table_name = $wpdb->base_prefix . 'ruigehond011_landingpages';
         $this->wpdb = $wpdb;
         $this->blog_id = isset($blog_id) ? \intval($blog_id) : \null;
-        $this->txt_record_mandatory = (isset($ruigehond011_txt_record_mandatory)) ? \boolval($ruigehond011_txt_record_mandatory) : \true;
+        $this->txt_record_mandatory = (\Defined('RUIGEHOND011_TXT_RECORD_MANDATORY')) ? \boolval(RUIGEHOND011_TXT_RECORD_MANDATORY) : \true;
         // get the slug we are using for this request, as far as the plugin is concerned
-        // set the slug to the value found in sunrise.php, or to the regular slug if none was found
+        // set the slug to the value found in sunrise-functions.php, or to the regular slug if none was found
         $this->slug = (isset($ruigehond011_slug)) ? $ruigehond011_slug : \trim($_SERVER['REQUEST_URI'], '/');
-        // set the minute to minute defined in sunrise.php, default to 10
+        // set the minute to minute defined in sunrise-functions.php, default to 10
         $this->minute = (isset($ruigehond011_minute)) ? \intval($ruigehond011_minute) : 10;
         // set the options for the current subsite
         $this->options = \get_option('ruigehond011');
