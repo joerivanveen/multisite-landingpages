@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.2.0
+Version: 1.2.1
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '1.2.0');
+\Define('ruigehond011_VERSION', '1.2.1');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -70,7 +70,9 @@ class ruigehond011
                 } else {
                     $this->canonical_prefix = 'http://';
                 }
-                if (isset($this->options['use_www']) and (true === $this->options['use_www'])) $this->canonical_prefix .= 'www.';
+                if (isset($this->options['use_www']) and (true === $this->options['use_www'])) {
+                    $this->canonical_prefix .= 'www.';
+                }
                 // load the canonicals
                 $this->canonicals = array();
                 if (isset($this->blog_id)) {
@@ -124,7 +126,7 @@ class ruigehond011
             if ($this->onSettingsPage()) ruigehond011_display_warning();
         } else { // regular visitor
             \add_action('parse_request', array($this, 'get')); // passes WP_Query object
-            if ($this->use_canonical) {
+            if (\true === $this->use_canonical) {
                 // fix the canonical url for functions that get the url, subject to additions...
                 foreach (array(
                              'post_link',
@@ -475,7 +477,11 @@ class ruigehond011
                 case 'use_www':
                 case 'use_ssl':
                 case 'remove_sitename':
-                    $options[$key] = ($value === '1' or $value === true);
+                    $value = ($value === '1' or $value === true); // normalize
+                    if (isset($options[$key]) and $options[$key] !== $value) {
+                        $this->removeCacheDirIfNecessary('');
+                    }
+                    $options[$key] = $value;
                     break;
                 case 'domain_new':
                     if ($value === '') break; // empty values don’t need to be processed
@@ -512,14 +518,16 @@ class ruigehond011
                     }
                     break;
                 case '__delete__':
+                    if ($value === '') break; // empty values don’t need to be processed
                     $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE domain = \'' .
                         \addslashes($value) . '\';');
                     $this->removeCacheDirIfNecessary($value);
                     break;
                 default: // this must be a slug change
                     // update the domain - slug combination
+                    $value = \sanitize_title($value);
                     $this->wpdb->query('UPDATE ' . $this->table_name . ' SET post_name = \'' .
-                        \addslashes(\sanitize_title($value)) . '\' WHERE domain = \'' .
+                        \addslashes($value) . '\' WHERE domain = \'' .
                         \addslashes($key) . '\';');
                     // bust cache only if this is a change
                     if (\false === isset($this->canonicals[$value]) or $this->canonicals[$value] !== $key)
@@ -533,12 +541,18 @@ class ruigehond011
     /**
      * @param $domain
      * @since 1.2.0 clears WP Rocket cache for the domain
+     * @since 1.2.1 accepts empty string to clear everything for the current subsite
      */
     public function removeCacheDirIfNecessary($domain)
     {
-        if ($this->manage_cache and ($domain = \strval($domain)) !== '') {
-            if (\is_readable(($path = \trailingslashit($this->cache_dir) . $domain))) {
-                ruigehond011_rmdir($path);
+        if ($this->manage_cache) {
+            if (($domain = \strval($domain)) !== '') {
+                if (\is_readable(($path = \trailingslashit($this->cache_dir) . $domain))) {
+                    ruigehond011_rmdir($path);
+                }
+            } else { // @since 1.2.1 warn that the cache must be purged for this subsite
+                \set_transient('ruigehond011_warning',
+                    __('You must clear your cache to propagate the changes immediately', 'multisite-landingpages'));
             }
         }
     }
@@ -553,9 +567,6 @@ class ruigehond011
         if (\false === $this->txt_record_mandatory) return \true;
         if (\is_array(($dns_records = \dns_get_record($domain, DNS_TXT)))) {
             // check for the record
-            //var_dump($txt_value);
-            //var_dump($dns_records);
-            //die(' opa');
             foreach ($dns_records as $index => $record) {
                 if (\is_array($record) and isset($record['txt']) and \trim($record['txt']) === $txt_value) {
                     return \true;
