@@ -2,7 +2,6 @@
 
 namespace ruigehond011;
 // config params
-if (!Defined('RUIGEHOND011_TXT_RECORD_MANDATORY')) define('RUIGEHOND011_TXT_RECORD_MANDATORY', true);
 if (!Defined('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT')) define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);
 // call the function that selects blog based on the domain
 sunrise();

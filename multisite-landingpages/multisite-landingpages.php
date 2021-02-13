@@ -522,7 +522,8 @@ class ruigehond011
                         \addslashes(\sanitize_title($value)) . '\' WHERE domain = \'' .
                         \addslashes($key) . '\';');
                     // bust cache only if this is a change
-                    if (\false === isset($this->canonicals[$value])) $this->removeCacheDirIfNecessary($key);
+                    if (\false === isset($this->canonicals[$value]) or $this->canonicals[$value] !== $key)
+                        $this->removeCacheDirIfNecessary($key);
             }
         }
 
