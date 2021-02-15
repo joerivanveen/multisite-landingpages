@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.2.1
+Version: 1.2.3
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '1.2.1');
+\Define('ruigehond011_VERSION', '1.2.3');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -541,7 +541,7 @@ class ruigehond011
     /**
      * @param $domain
      * @since 1.2.0 clears WP Rocket cache for the domain
-     * @since 1.2.1 accepts empty string to clear everything for the current subsite
+     * @since 1.2.2 accepts empty string to clear everything for the current subsite
      */
     public function removeCacheDirIfNecessary($domain)
     {
@@ -550,11 +550,38 @@ class ruigehond011
                 if (\is_readable(($path = \trailingslashit($this->cache_dir) . $domain))) {
                     ruigehond011_rmdir($path);
                 }
-            } else { // @since 1.2.1 warn that the cache must be purged for this subsite
-                \set_transient('ruigehond011_warning',
-                    __('You must clear your cache to propagate the changes immediately', 'multisite-landingpages'));
+            } else { // @since 1.2.2 clear the cache for the entire subsite
+                $this->removeCacheForEntireSubSite();
+                //\set_transient('ruigehond011_warning',
+                //    __('You must clear your cache to propagate the changes immediately', 'multisite-landingpages'));
             }
         }
+    }
+
+    public function removeCacheForEntireSubSite()
+    {
+        // gather all the names / urls this subsite has content under at the moment (nothing less we can do)
+        $base_prefix = $this->wpdb->base_prefix;
+        $blog_id = $this->blog_id;
+        $rows = $this->wpdb->get_results(
+            'SELECT domain FROM ' . $this->table_name . ' WHERE blog_id = ' . $blog_id . ';');
+        $rows = array_merge($rows, $this->wpdb->get_results(
+            '  SELECT domain FROM ' . $base_prefix . 'blogs WHERE blog_id = ' . $blog_id . ';'));
+        if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT) {
+            $rows = array_merge($rows, $this->wpdb->get_results(
+                'SELECT domain FROM ' . $base_prefix . 'domain_mapping WHERE blog_id = ' . $blog_id . ';'));
+        }
+        $domains = array();
+        foreach ($rows as $index => $row) {
+            // replacement is for multisite in directory mode, UNCONFIRMED TODO need to find a test site or info for it
+            $domains[\str_replace('/', '-', $row->domain)] = \true;
+        }
+        $rows = \null;
+        // remove all the folders by those names
+        foreach ($domains as $domain => $ok) {
+            if ($domain !== '') $this->removeCacheDirIfNecessary($domain);
+        }
+        \set_transient('ruigehond011_warning', 'Cleared cache');
     }
 
     /**
@@ -782,9 +809,30 @@ function ruigehond011_display_warning()
 /**
  * @param $dir
  * @since 1.2.0 generic remove directory function
+ * @since 1.2.3 refactored using DirectoryIterator (faster with many files) / production ready
  */
 function ruigehond011_rmdir($dir)
 {
+    if (\is_dir($dir)) {
+        $objects = new \DirectoryIterator($dir);
+        var_dump($objects);
+        die('opa');
+        foreach ($objects as $object) {
+            var_dump($object);
+            echo '<br/>';
+            if ($object !== '.' and $object !== '..') {
+                $path = $dir . '/' . $object;
+                if (\filetype($path) === 'dir') {
+                    ruigehond011_rmdir($path);
+                } else {
+                    \unlink($path);
+                }
+            }
+            $objects = \null;
+            \rmdir($dir);
+        }
+    }
+    /*
     if (\is_dir($dir)) {
         $objects = \scandir($dir);
         foreach ($objects as $object) {
@@ -798,5 +846,5 @@ function ruigehond011_rmdir($dir)
         }
         \reset($objects);
         \rmdir($dir);
-    }
+    }*/
 }
