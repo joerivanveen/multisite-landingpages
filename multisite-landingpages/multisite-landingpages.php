@@ -560,6 +560,7 @@ class ruigehond011
 
     public function removeCacheForEntireSubSite()
     {
+        ruigehond011_rmdir(RUIGEHOND011_WP_ROCKET_CACHE_DIR);
         // gather all the names / urls this subsite has content under at the moment (nothing less we can do)
         $base_prefix = $this->wpdb->base_prefix;
         $blog_id = $this->blog_id;
@@ -809,42 +810,23 @@ function ruigehond011_display_warning()
 /**
  * @param $dir
  * @since 1.2.0 generic remove directory function
- * @since 1.2.3 refactored using DirectoryIterator (faster with many files) / production ready
+ * @since 1.2.3 refactored using readdir
  */
 function ruigehond011_rmdir($dir)
 {
     if (\is_dir($dir)) {
-        $objects = new \DirectoryIterator($dir);
-        var_dump($objects);
-        die('opa');
-        foreach ($objects as $object) {
-            var_dump($object);
-            echo '<br/>';
+        $handle = \opendir($dir);
+        while (\false !== ($object = \readdir($handle))) {
             if ($object !== '.' and $object !== '..') {
                 $path = $dir . '/' . $object;
+                echo $object . ': ' . filetype($path) . '<br/>';
                 if (\filetype($path) === 'dir') {
-                    ruigehond011_rmdir($path);
+                   ruigehond011_rmdir($path);
                 } else {
-                    \unlink($path);
-                }
-            }
-            $objects = \null;
-            \rmdir($dir);
-        }
-    }
-    /*
-    if (\is_dir($dir)) {
-        $objects = \scandir($dir);
-        foreach ($objects as $object) {
-            if ($object !== '.' and $object !== '..') {
-                if (\filetype($dir . '/' . $object) === 'dir') {
-                    ruigehond011_rmdir($dir . '/' . $object);
-                } else {
-                    \unlink($dir . '/' . $object);
+                   \unlink($path);
                 }
             }
         }
-        \reset($objects);
         \rmdir($dir);
-    }*/
+    }
 }
