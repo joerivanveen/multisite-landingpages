@@ -43,10 +43,10 @@ function sunrise()
             $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id WHERE rh.domain = \'' .
             \addslashes($domain) . '\';');
     }
-    var_dump($wpdb->last_query);
-    echo '<hr/>';
-    var_dump($rows);
-    die();
+    //var_dump($wpdb->last_query);
+    //echo '<hr/>';
+    //var_dump($rows);
+    //die();
 
     if (\count($rows) > 0) {
         $row = $rows[0];
@@ -56,7 +56,8 @@ function sunrise()
         // set the HTTP_HOST to the domain of this blog you want, let WordPress handle it further
         // @since 1.2.0 use the mapped domain if relevant
         if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT
-            and \get_blog_option($row->blog_id, 'domainmap_frontend_mapping') === 'mapped') {
+            and \get_blog_option($row->blog_id, 'domainmap_frontend_mapping') === 'mapped'
+            and isset($row->mapped_domain)) {
             $_SERVER['HTTP_HOST'] = $row->mapped_domain;
         } else {
             $_SERVER['HTTP_HOST'] = $row->multisite_domain;
