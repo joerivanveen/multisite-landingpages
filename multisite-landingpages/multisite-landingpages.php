@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.2.3
+Version: 1.2.4
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('ruigehond011_VERSION', '1.2.3');
+\Define('RUIGEHOND011_VERSION', '1.2.4');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -27,7 +27,7 @@ Domain Path: /languages/
 class ruigehond011
 {
     private $options, $use_canonical, $canonicals, $canonical_prefix, $remove_sitename_from_title = false;
-    private $slug, $minute, $wpdb, $blog_id, $txt_record, $table_name, $locale, $post_types = array(); // cached values
+    private $slug, $wpdb, $blog_id, $txt_record, $table_name, $post_types = array();
     private $db_version;
     private $txt_record_mandatory, $manage_cache, $cache_dir;
 
@@ -39,7 +39,7 @@ class ruigehond011
     public function __construct()
     {
         // define some global vars for this instance
-        global $ruigehond011_slug, $ruigehond011_minute, $wpdb, $blog_id;
+        global $wpdb, $blog_id;
         // use base prefix to make a table shared by all the blogs
         $this->table_name = $wpdb->base_prefix . 'ruigehond011_landingpages';
         $this->wpdb = $wpdb;
@@ -49,16 +49,16 @@ class ruigehond011
         if (\true === ($this->manage_cache = \Defined('RUIGEHOND011_WP_ROCKET_CACHE_DIR'))) {
             if (\is_writable(RUIGEHOND011_WP_ROCKET_CACHE_DIR)) {
                 $this->cache_dir = RUIGEHOND011_WP_ROCKET_CACHE_DIR;
+                // @since 1.2.4 help WP Rocket clean everything https://harry.plus/blog/wp-rocket-hooks/
+                \add_action('after_rocket_clean_domain', array($this, 'removeCacheForEntireSubSite'));
             } else {
                 \set_transient('ruigehond011_warning',
-                    __('Cache bust directory is not writable or doesn’t exist', 'multisite-landingpages'));
+                    __('WP Rocket cache directory is not writable or doesn’t exist', 'multisite-landingpages'));
             }
         }
         // get the slug we are using for this request, as far as the plugin is concerned
         // set the slug to the value found in sunrise-functions.php, or to the regular slug if none was found
-        $this->slug = (isset($ruigehond011_slug)) ? $ruigehond011_slug : \trim($_SERVER['REQUEST_URI'], '/');
-        // set the minute to minute defined in sunrise-functions.php, default to 10
-        $this->minute = (isset($ruigehond011_minute)) ? \intval($ruigehond011_minute) : 10;
+        $this->slug = (\Defined('RUIGEHOND011_SLUG')) ? RUIGEHOND011_SLUG : \trim($_SERVER['REQUEST_URI'], '/');
         // set the options for the current subsite
         $this->options = \get_option('ruigehond011');
         $options_changed = false;
@@ -93,7 +93,7 @@ class ruigehond011
             $this->txt_record = $this->options['txt_record'];
             // get the database version number, set it when not yet available
             if (\false === isset($this->options['db_version'])) {
-                $this->options['db_version'] = ruigehond011_VERSION;
+                $this->options['db_version'] = RUIGEHOND011_VERSION;
                 $options_changed = \true;
             }
             $this->db_version = $this->options['db_version'];
@@ -157,17 +157,6 @@ class ruigehond011
         }
 
         return $url;
-    }
-
-    /**
-     * Hook for the locale, set with ->initialize()
-     * @param $locale
-     * @return string the locale set by multisite-landingpages, fallback to the current one (just) set by Wordpress
-     * @since 1.3.0
-     */
-    public function getLocale($locale)
-    {
-        return isset($this->locale) ? $this->locale : $locale;
     }
 
     /**
@@ -560,7 +549,6 @@ class ruigehond011
 
     public function removeCacheForEntireSubSite()
     {
-        ruigehond011_rmdir(RUIGEHOND011_WP_ROCKET_CACHE_DIR);
         // gather all the names / urls this subsite has content under at the moment (nothing less we can do)
         $base_prefix = $this->wpdb->base_prefix;
         $blog_id = $this->blog_id;
@@ -646,31 +634,6 @@ class ruigehond011
         );
     }
 
-    public function cronjob()
-    {
-        // we’re checking it in the admin interface: more direct and consumes less resources in large networks
-        return;
-        $dns_records = $this->wpdb->get_results('SELECT domain, txt_record, approved FROM ' . $this->table_name);
-        // for each record, you need to check if the txt is available, update the approved value if it changed
-        foreach ($dns_records as $index => $record) {
-            if (\true === $this->checkTxtRecord($record->domain, $record->txt_record)) {
-                if (\intval($record->approved) !== 1) { // re-approve it / reset it
-                    $this->wpdb->query('UPDATE ' . $this->table_name .
-                        ' SET approved = 1 WHERE domain = \'' . \addslashes($record->domain) . '\'');
-                }
-            } elseif (($approved = \intval($record->approved)) > 0) {
-                if ($approved === 3) { // disapprove it
-                    $this->wpdb->query('UPDATE ' . $this->table_name .
-                        ' SET approved = 0 WHERE domain = \'' . \addslashes($record->domain) . '\'');
-                } else { // count the approved value one up
-                    $approved = \intval($record->approved) + 1;
-                    $this->wpdb->query('UPDATE ' . $this->table_name .
-                        ' SET approved = ' . \strval($approved) . ' WHERE domain = \'' . \addslashes($record->domain) . '\'');
-                }
-            }
-        }
-    }
-
     /**
      * plugin management functions
      */
@@ -715,10 +678,6 @@ class ruigehond011
 					';
             $this->wpdb->query($sql);
         }
-        // add the cron job that checks the dns txt records, if not already active
-        /*if (\false === \wp_next_scheduled('ruigehond011_check_dns')) {
-            \wp_schedule_event(time(), 'hourly', 'ruigehond011_check_dns');
-        }*/
     }
 
     public function updateWhenNecessary()
@@ -783,9 +742,6 @@ class ruigehond011
         if ($this->wpdb->get_var('SHOW TABLES LIKE \'' . $this->table_name . '\';') === $this->table_name) {
             $this->wpdb->query('DROP TABLE ' . $this->table_name . ';');
         }
-        // forget about the cron job as well
-        $timestamp = \wp_next_scheduled('ruigehond011_check_dns');
-        \wp_unschedule_event($timestamp, 'ruigehond011_check_dns'); // also all future events are unscheduled
     }
 }
 
@@ -821,9 +777,9 @@ function ruigehond011_rmdir($dir)
                 $path = $dir . '/' . $object;
                 echo $object . ': ' . filetype($path) . '<br/>';
                 if (\filetype($path) === 'dir') {
-                   ruigehond011_rmdir($path);
+                    ruigehond011_rmdir($path);
                 } else {
-                   \unlink($path);
+                    \unlink($path);
                 }
             }
         }

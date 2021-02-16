@@ -14,7 +14,7 @@ sunrise();
  * @returns void
  * @since 0.1.0
  * @since 0.9.1 only approved (any non-0 value) domains are considered
- * @since 1.2.0 the flag RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT makes this sunrise use the mapped domain
+ * @since 1.2.0 the flag RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT makes this sunrise use the mapped domain when appropriate
  */
 function sunrise()
 {
@@ -51,8 +51,7 @@ function sunrise()
     if (\count($rows) > 0) {
         $row = $rows[0];
         // set the required global object for ruigehond011 subsite part of the plugin
-        global $ruigehond011_slug;
-        $ruigehond011_slug = $row->post_name;
+        \Define('RUIGEHOND011_SLUG', $row->post_name);
         // set the HTTP_HOST to the domain of this blog you want, let WordPress handle it further
         // @since 1.2.0 use the mapped domain if relevant
         if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT
