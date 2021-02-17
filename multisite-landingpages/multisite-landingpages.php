@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.2.4
+Version: 1.2.5
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('RUIGEHOND011_VERSION', '1.2.4');
+\Define('RUIGEHOND011_VERSION', '1.2.5');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -482,6 +482,16 @@ class ruigehond011
                     }
                     // @since 0.9.1: get the txt record, only then the domain is considered valid
                     if (\true === $this->checkTxtRecord($value, $this->txt_record)) {
+                        // @since 1.2.5 if the domain exists and ownership is not proven, you cannot take it
+                        if (\false === $this->txt_record_mandatory) {
+                            $rows = $this->wpdb->get_results('SELECT 1 FROM ' . $this->table_name .
+                                ' WHERE domain = \'' . \addslashes($value) . '\'');
+                            if (\count($rows) === 1) {
+                                \set_transient('ruigehond011_warning',
+                                    \sprintf(__('Domain %s already in use', 'multisite-landingpages'), $value));
+                                break;
+                            }
+                        }
                         // if the txt record exists remove any previous entries from the landingpage table
                         $this->wpdb->query('DELETE FROM ' . $this->table_name .
                             ' WHERE domain = \'' . \addslashes($value) . '\'');
