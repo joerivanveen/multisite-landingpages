@@ -580,7 +580,7 @@ class ruigehond011
         foreach ($domains as $domain => $ok) {
             if ($domain !== '') $this->removeCacheDirIfNecessary($domain);
         }
-        \set_transient('ruigehond011_warning', 'Cleared cache');
+        \set_transient('ruigehond011_warning', __('Cleared cache', 'multisite-landingpages'));
     }
 
     /**
@@ -763,12 +763,12 @@ function ruigehond011_uninstall()
 
 function ruigehond011_display_warning()
 {
-    /* Check transient, if available display it */
+    /* Check warning, if available display it */
     if (($warning = \get_transient('ruigehond011_warning'))) {
         echo '<div class="notice notice-warning is-dismissible"><p>';
         echo $warning;
         echo '</p></div>';
-        /* Delete transient, only display this notice once. */
+        /* Delete warning, only display this notice once. */
         \delete_transient('ruigehond011_warning');
     }
 }

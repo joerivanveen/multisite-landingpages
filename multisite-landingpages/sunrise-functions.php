@@ -38,8 +38,7 @@ function sunrise()
             'domain_mapping dm ON dm.blog_id = rh.blog_id WHERE (dm.active = 1 OR dm.active IS NULL) AND rh.domain = \'' .
             \addslashes($domain) . '\' ORDER BY dm.is_primary DESC;');
         if ($wpdb->last_error) {
-            \set_transient('ruigehond011_warning',
-                \sprintf('Sunrise query error. Maybe your ‘%s’ constant is wrong',
+            \trigger_error(\sprintf('Sunrise query error, maybe your ‘%s’ constant is wrong',
                     'RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT'));
         }
     } else {
