@@ -37,6 +37,11 @@ function sunrise()
             $table_name . ' rh INNER JOIN ' . $base_prefix . 'blogs wp ON wp.blog_id = rh.blog_id LEFT OUTER JOIN ' . $base_prefix .
             'domain_mapping dm ON dm.blog_id = rh.blog_id WHERE (dm.active = 1 OR dm.active IS NULL) AND rh.domain = \'' .
             \addslashes($domain) . '\' ORDER BY dm.is_primary DESC;');
+        if ($wpdb->last_error) {
+            \set_transient('ruigehond011_warning',
+                \sprintf('Sunrise query error. Maybe your ‘%s’ constant is wrong',
+                    'RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT'));
+        }
     } else {
         $rows = $wpdb->get_results(
             'SELECT rh.blog_id, rh.domain AS landing_domain, wp.domain AS multisite_domain, NULL AS mapped_domain, rh.post_name FROM ' .

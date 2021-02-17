@@ -26,8 +26,9 @@ The following is only true if the global config ruigehond011_txt_record_mandator
 Subsite administrators must put a TXT record in their DNS for any domain they want to add to prove they own it. This TXT record is unique for each subsite and installation (it uses the uuid4 functionality) and displayed to the administrator on the settings page.
 If the TXT record is not present the domain will not be added.
 When the TXT record is no longer found, a warning will be displayed on the settings page next to the entry. The landing page will keep working however as long as the domain is correctly pointed at the installation.
+When someone else adds the domain (while proving ownership), the domain is assigned to that subsite, and not visible anymore to the old subsite.
 
-Regardless of settings, when someone else adds the domain (while proving ownership), the domain is assigned to that subsite, and not visible anymore to the old subsite.
+When ruigehond011_txt_record_mandatory = false admins cannot prove ownership, therefore the transfer of a domain as described in the above paragraph is NOT possible. Domains that are in the table cannot be added by another subsite.
 
 For custom fonts to work the following code must be added to .htaccess:
 
