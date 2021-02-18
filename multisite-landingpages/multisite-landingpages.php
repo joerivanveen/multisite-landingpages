@@ -168,7 +168,7 @@ class ruigehond011
     public function get($query)
     {
         $slug = $this->slug;
-        if (($type = $this->postType($slug))) { // fails when post not found, null is returned which is falsy
+        if (isset($this->canonicals[$slug]) and ($type = $this->postType($slug))) { // fails when post not found, null is returned which is falsy
             if ($this->remove_sitename_from_title) {
                 if (\has_action('wp_head', '_wp_render_title_tag') == 1) {
                     \remove_action('wp_head', '_wp_render_title_tag', 1);
@@ -187,6 +187,8 @@ class ruigehond011
                 $query->did_permalink = true;
             } // does not work with custom post types (yet) TODO redirect to homepage?
         }
+        //var_dump($query);
+        //die(' opa');
 
         return $query;
     }
