@@ -58,7 +58,8 @@ class ruigehond011
         }
         // get the slug we are using for this request, as far as the plugin is concerned
         // set the slug to the value found in sunrise-functions.php, or to the regular slug if none was found
-        $this->slug = (\Defined('RUIGEHOND011_SLUG')) ? RUIGEHOND011_SLUG : \trim($_SERVER['REQUEST_URI'], '/');
+        //$this->slug = (\Defined('RUIGEHOND011_SLUG')) ? RUIGEHOND011_SLUG : \trim($_SERVER['REQUEST_URI'], '/');
+        $this->slug = (\Defined('RUIGEHOND011_SLUG')) ? RUIGEHOND011_SLUG : \null;
         // set the options for the current subsite
         $this->options = \get_option('ruigehond011');
         $options_changed = false;
@@ -73,16 +74,16 @@ class ruigehond011
                 if (isset($this->options['use_www']) and (true === $this->options['use_www'])) {
                     $this->canonical_prefix .= 'www.';
                 }
-                // load the canonicals
-                $this->canonicals = array();
-                if (isset($this->blog_id)) {
-                    $rows = $this->wpdb->get_results('SELECT domain, post_name FROM ' . $this->table_name .
-                        ' WHERE blog_id = ' . $this->blog_id . ' AND approved = 1;');
-                    foreach ($rows as $index => $row) {
-                        $this->canonicals[$row->post_name] = $row->domain;
-                    }
-                    $rows = \null;
+            }
+            // load the canonicals always (@since 1.2.6)
+            $this->canonicals = array();
+            if (isset($this->blog_id)) {
+                $rows = $this->wpdb->get_results('SELECT domain, post_name FROM ' . $this->table_name .
+                    ' WHERE blog_id = ' . $this->blog_id . ' AND approved = 1;');
+                foreach ($rows as $index => $row) {
+                    $this->canonicals[$row->post_name] = $row->domain;
                 }
+                $rows = \null;
             }
             $this->remove_sitename_from_title = (isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']));
             // get the txt_record value or set it when not available yet
@@ -151,8 +152,7 @@ class ruigehond011
      */
     public function adminUrl($url)
     {
-        $slug = $this->slug;
-        if (isset($this->canonicals[$slug])) {
+        if (isset($this->slug) and isset($this->canonicals[($slug = $this->slug)])) {
             return \str_replace(\get_site_url(), $this->fixUrl($slug), $url);
         }
 
@@ -167,8 +167,9 @@ class ruigehond011
      */
     public function get($query)
     {
+        if (\false === isset($this->slug)) return $query;
         $slug = $this->slug;
-        if (isset($this->canonicals[$slug]) and ($type = $this->postType($slug))) { // fails when post not found, null is returned which is falsy
+        if (($type = $this->postType($slug))) { // fails when post not found, null is returned which is falsy
             if ($this->remove_sitename_from_title) {
                 if (\has_action('wp_head', '_wp_render_title_tag') == 1) {
                     \remove_action('wp_head', '_wp_render_title_tag', 1);
