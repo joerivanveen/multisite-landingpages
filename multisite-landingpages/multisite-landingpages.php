@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.2.5
+Version: 1.2.6
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -12,7 +12,7 @@ Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('RUIGEHOND011_VERSION', '1.2.5');
+\Define('RUIGEHOND011_VERSION', '1.2.6');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
@@ -333,6 +333,8 @@ class ruigehond011
                 echo __('When someone visits your site using the domain, they will see the assigned page or regular post.', 'multisite-landingpages');
                 echo ' <em>';
                 echo __('Custom post types are not yet supported.', 'multisite-landingpages');
+                echo ' ';
+                echo __('This includes the default shop page.', 'multisite-landingpages');
                 echo '</em><br/><strong>';
                 echo __('The rest of your site keeps working as usual.', 'multisite-landingpages');
                 echo '</strong></p><input type="hidden" name="ruigehond011[__delete__]"/>';
@@ -340,8 +342,11 @@ class ruigehond011
             'ruigehond011'
         );
         // actual landing pages here
-        $rows = $this->wpdb->get_results('SELECT domain, post_name, approved FROM ' .
-            $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ' ORDER BY domain;');
+        $rows = $this->wpdb->get_results(
+            'SELECT rh.domain, rh.post_name, rh.approved, wp.post_type FROM ' .
+            $this->table_name . ' rh LEFT OUTER JOIN ' .$this->wpdb->prefix.
+            'posts wp ON rh.post_name = wp.post_name WHERE blog_id = ' . $this->blog_id .
+            ' ORDER BY domain;');
         $txt_record = $this->txt_record;
         foreach ($rows as $index => $row) {
             $domain = $row->domain;
@@ -352,6 +357,7 @@ class ruigehond011
                 function ($args) {
                     $domain = $args['domain'];
                     $slug = $args['slug'];
+                    $post_type = $args['post_type'];
                     $approved = \boolval($args['approved']);
                     echo '<input type="text" name="ruigehond011[';
                     echo $domain;
@@ -363,9 +369,21 @@ class ruigehond011
                     echo $domain;
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
                     if (\true === $approved) {
-                        if ($args['in_canonicals']) {
-                            echo '<span class="notice-success notice">';
-                            echo __('slug loaded in canonicals', 'multisite-landingpages');
+                        if ($post_type) {
+                            if ($args['in_canonicals']) {
+                                echo '<span class="notice-success notice">';
+                                echo $post_type;
+                                echo ' ';
+                                if ($args['use_canonical']) {
+                                    echo __('loaded in canonicals', 'multisite-landingpages');
+                                } else {
+                                    echo __('serving', 'multisite-landingpages');
+                                }
+                                echo '</span>';
+                            }
+                        } else {
+                            echo '<span class="notice-warning notice">';
+                            echo __('slug not found', 'multisite-landingpages');
                             echo '</span>';
                         }
                     } else {
@@ -380,6 +398,8 @@ class ruigehond011
                     'slug' => $slug,
                     'approved' => $this->checkTxtRecord($domain, $txt_record),
                     'in_canonicals' => isset($this->canonicals[$slug]),
+                    'use_canonical' => $this->use_canonical,
+                    'post_type' => $row->post_type,
                     'domain' => $domain,
                     'class' => 'ruigehond_row',
                 ]
