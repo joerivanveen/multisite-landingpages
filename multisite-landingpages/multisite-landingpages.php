@@ -19,8 +19,6 @@ Domain Path: /languages/
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
-// @since 1.2.7 remove the landing pages entries when a (sub)site is deleted...
-\add_action('wp_delete_site', array(new ruigehond011(), 'deactivateSite')); // NOTE MINIMUM WP VERSION = 5.1.0!!
 // Startup the plugin
 \add_action('init', array(new ruigehond011(), 'initialize'));
 
@@ -125,7 +123,13 @@ class ruigehond011
             \add_action('admin_init', array($this, 'settings'));
             \add_action('admin_menu', array($this, 'menuitem')); // necessary to have the page accessible to user
             \add_filter('plugin_action_links_' . \plugin_basename(__FILE__), array($this, 'settingslink')); // settings link on plugins page
-            if ($this->onSettingsPage()) ruigehond011_display_warning();
+            if ($this->onSettingsPage()) {
+                ruigehond011_display_warning();
+                // @since 1.2.7 also cleanup the landingpages table (since wp_delete_site hook does not work)
+                $this->wpdb->query('DELETE FROM ' . $this->table_name .
+                    ' WHERE blog_id NOT IN (SELECT blog_id FROM ' . $this->wpdb->base_prefix . 'blogs);');
+                if (($msg = $this->wpdb->last_error) !== '') \trigger_error($msg);
+            }
         } else { // regular visitor
             \add_action('parse_request', array($this, 'get')); // passes WP_Query object
             if (\true === $this->use_canonical) {
@@ -345,7 +349,7 @@ class ruigehond011
         // actual landing pages here
         $rows = $this->wpdb->get_results(
             'SELECT rh.domain, rh.post_name, rh.approved, wp.post_type FROM ' .
-            $this->table_name . ' rh LEFT OUTER JOIN ' .$this->wpdb->prefix.
+            $this->table_name . ' rh LEFT OUTER JOIN ' . $this->wpdb->prefix .
             'posts wp ON (rh.post_name = wp.post_name COLLATE \'utf8mb4_unicode_520_ci\') WHERE blog_id = ' . $this->blog_id .
             ' ORDER BY domain;');
         $txt_record = $this->txt_record;
@@ -763,16 +767,6 @@ class ruigehond011
             if (isset($this->blog_id)) {
                 $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $this->blog_id . ';');
             }
-        }
-    }
-
-    /**
-     * @param $old_site sent by wpmu_delete_site to this hook
-     * @since 1.2.7 actively remove entries when a blog / site is deleted
-     */
-    public function deactivateSite($old_site) {
-        if (isset($old_site->id) and ($blog_id = $old_site->id)) {
-            $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $blog_id . ';');
         }
     }
 
