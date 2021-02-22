@@ -3,7 +3,7 @@
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/each-domain-a-page
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
-Version: 1.2.6
+Version: 1.2.7
 Author: Ruige hond
 Author URI: https://ruigehond.nl
 License: GPLv3
@@ -14,7 +14,7 @@ Domain Path: /languages/
 // @since 1.2.5 the $this->slug is only set when we are on one of the landing pages, so now it signals exactly that
 // when $this->slug is nog set, it means we’re on a regular page
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
-\Define('RUIGEHOND011_VERSION', '1.2.6');
+\Define('RUIGEHOND011_VERSION', '1.2.7');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
