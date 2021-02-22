@@ -19,6 +19,8 @@ Domain Path: /languages/
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
+// @since 1.2.7 remove the landing pages entries when a (sub)site is deleted...
+\add_action('wp_delete_site', array(new ruigehond011(), 'deactivateSite')); // NOTE MINIMUM WP VERSION = 5.1.0!!
 // Startup the plugin
 \add_action('init', array(new ruigehond011(), 'initialize'));
 
@@ -764,6 +766,20 @@ class ruigehond011
         }
     }
 
+    /**
+     * @param $old_site sent by wpmu_delete_site to this hook
+     * @since 1.2.7 actively remove entries when a blog / site is deleted
+     */
+    public function deactivateSite($old_site) {
+        if (isset($old_site->id) and ($blog_id = $old_site->id)) {
+            $this->wpdb->query('DELETE FROM ' . $this->table_name . ' WHERE blog_id = ' . $blog_id . ';');
+        }
+    }
+
+    /**
+     * deactivate all instances and then drop the landing pages table
+     * @since 1.2.0
+     */
     public function network_uninstall()
     {
         // deactivate all instances
