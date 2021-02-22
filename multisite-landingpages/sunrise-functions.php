@@ -13,7 +13,6 @@ sunrise();
  * when not found in the table, nothing is changed, let WordPress handle it further
  * @returns void
  * @since 0.1.0
- * @since 0.9.1 only approved (any non-0 value) domains are considered
  * @since 1.2.0 the flag RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT makes this sunrise use the mapped domain when appropriate
  */
 function sunrise()
@@ -26,7 +25,7 @@ function sunrise()
     // remove www if present
     if (\strpos($domain, 'www.') === 0) $domain = \substr($domain, 4);
 
-    // if the domain is in the landingpage table, setup the global site and blog name for ms-settings.php
+    // if the domain is in the landing page table, setup the global site and blog name for ms-settings.php
     // else do nothing, it will be setup like this multisite works normally
     // @since 1.2.0 also take into account the mapped_domain table if present
     $base_prefix = $wpdb->base_prefix;

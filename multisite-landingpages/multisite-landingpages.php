@@ -11,15 +11,14 @@ Text Domain: multisite-landingpages
 Domain Path: /languages/
 */
 \defined('ABSPATH') or die();
+// @since 1.2.5 the $this->slug is only set when we are on one of the landing pages, so now it signals exactly that
+// when $this->slug is nog set, it means we’re on a regular page
 // This is plugin nr. 11 by Ruige hond. It identifies as: ruigehond011.
 \Define('RUIGEHOND011_VERSION', '1.2.6');
 // Register hooks for plugin management, functions are at the bottom of this file.
 \register_activation_hook(__FILE__, array(new ruigehond011(), 'activate'));
 \register_deactivation_hook(__FILE__, array(new ruigehond011(), 'deactivate'));
 \register_uninstall_hook(__FILE__, 'ruigehond011_uninstall');
-// setup cron hook that checks dns txt records
-// https://developer.wordpress.org/plugins/cron/scheduling-wp-cron-events/
-//\add_action('ruigehond011_check_dns', array(new ruigehond011(), 'cronjob'));
 // Startup the plugin
 \add_action('init', array(new ruigehond011(), 'initialize'));
 
@@ -85,7 +84,7 @@ class ruigehond011
                 }
                 $rows = \null;
             }
-            $this->remove_sitename_from_title = (isset($this->options['remove_sitename']) and (true === $this->options['remove_sitename']));
+            $this->remove_sitename_from_title = (isset($this->options['remove_sitename']) and (\true === $this->options['remove_sitename']));
             // get the txt_record value or set it when not available yet
             if (\false === isset($this->options['txt_record'])) { // add the guid to use for txt_record for this subsite
                 $this->options['txt_record'] = 'multisite-landingpages=' . \wp_generate_uuid4();
@@ -345,7 +344,7 @@ class ruigehond011
         $rows = $this->wpdb->get_results(
             'SELECT rh.domain, rh.post_name, rh.approved, wp.post_type FROM ' .
             $this->table_name . ' rh LEFT OUTER JOIN ' .$this->wpdb->prefix.
-            'posts wp ON rh.post_name = wp.post_name WHERE blog_id = ' . $this->blog_id .
+            'posts wp ON (rh.post_name = wp.post_name COLLATE \'utf8mb4_unicode_520_ci\') WHERE blog_id = ' . $this->blog_id .
             ' ORDER BY domain;');
         $txt_record = $this->txt_record;
         foreach ($rows as $index => $row) {
@@ -574,8 +573,6 @@ class ruigehond011
                 }
             } else { // @since 1.2.2 clear the cache for the entire subsite
                 $this->removeCacheForEntireSubSite();
-                //\set_transient('ruigehond011_warning',
-                //    __('You must clear your cache to propagate the changes immediately', 'multisite-landingpages'));
             }
         }
     }
@@ -587,10 +584,10 @@ class ruigehond011
         $blog_id = $this->blog_id;
         $rows = $this->wpdb->get_results(
             'SELECT domain FROM ' . $this->table_name . ' WHERE blog_id = ' . $blog_id . ';');
-        $rows = array_merge($rows, $this->wpdb->get_results(
+        $rows = \array_merge($rows, $this->wpdb->get_results(
             '  SELECT domain FROM ' . $base_prefix . 'blogs WHERE blog_id = ' . $blog_id . ';'));
         if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT) {
-            $rows = array_merge($rows, $this->wpdb->get_results(
+            $rows = \array_merge($rows, $this->wpdb->get_results(
                 'SELECT domain FROM ' . $base_prefix . 'domain_mapping WHERE blog_id = ' . $blog_id . ';'));
         }
         $domains = array();
@@ -808,7 +805,7 @@ function ruigehond011_rmdir($dir)
         while (\false !== ($object = \readdir($handle))) {
             if ($object !== '.' and $object !== '..') {
                 $path = $dir . '/' . $object;
-                echo $object . ': ' . filetype($path) . '<br/>';
+                echo $object . ': ' . \filetype($path) . '<br/>';
                 if (\filetype($path) === 'dir') {
                     ruigehond011_rmdir($path);
                 } else {
