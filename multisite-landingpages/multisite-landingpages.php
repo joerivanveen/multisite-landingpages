@@ -56,8 +56,7 @@ class ruigehond011
             }
         }
         // get the slug we are using for this request, as far as the plugin is concerned
-        // set the slug to the value found in sunrise-functions.php, or to the regular slug if none was found
-        //$this->slug = (\Defined('RUIGEHOND011_SLUG')) ? RUIGEHOND011_SLUG : \trim($_SERVER['REQUEST_URI'], '/');
+        // set the slug to the value found in sunrise-functions.php, or null if none was found
         $this->slug = (\Defined('RUIGEHOND011_SLUG')) ? RUIGEHOND011_SLUG : \null;
         // set the options for the current subsite
         $this->options = \get_option('ruigehond011');
@@ -182,13 +181,15 @@ class ruigehond011
                 }
                 \add_filter('wpseo_title', array($this, 'get_title'), 1);
             }
-            if ($type === 'page') {
+            if ('page' === $type) {
                 $query->query_vars['pagename'] = $slug;
                 $query->query_vars['request'] = $slug;
                 $query->query_vars['did_permalink'] = true;
-            } elseif ($type === 'post') {
+            } elseif (\in_array($type, ['post','cartflows_step'])) {
+                $query->query_vars['page'] = '';
                 $query->query_vars['name'] = $slug;
                 $query->request = $slug;
+                $query->matched_rule = '';
                 $query->matched_query = 'name=' . $slug . '$page='; // TODO paging??
                 $query->did_permalink = true;
             } // does not work with custom post types (yet) TODO redirect to homepage?
@@ -815,7 +816,7 @@ function ruigehond011_rmdir($dir)
         while (\false !== ($object = \readdir($handle))) {
             if ($object !== '.' and $object !== '..') {
                 $path = $dir . '/' . $object;
-                echo $object . ': ' . \filetype($path) . '<br/>';
+                //echo $object . ': ' . \filetype($path) . '<br/>';
                 if (\filetype($path) === 'dir') {
                     ruigehond011_rmdir($path);
                 } else {
