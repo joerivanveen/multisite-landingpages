@@ -29,6 +29,7 @@ class ruigehond011
     private $slug, $wpdb, $blog_id, $txt_record, $table_name, $post_types = array();
     private $db_version;
     private $txt_record_mandatory, $manage_cache, $cache_dir;
+    private $supported_post_types = ['page', 'post', 'cartflows_step'];
 
     /**
      * ruigehond011 constructor
@@ -185,7 +186,7 @@ class ruigehond011
                 $query->query_vars['pagename'] = $slug;
                 $query->query_vars['request'] = $slug;
                 $query->query_vars['did_permalink'] = true;
-            } elseif (\in_array($type, ['post','cartflows_step'])) {
+            } elseif (\in_array($type, $this->supported_post_types)) {
                 $query->query_vars['page'] = '';
                 $query->query_vars['name'] = $slug;
                 $query->request = $slug;
@@ -375,8 +376,14 @@ class ruigehond011
                     echo $domain;
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
                     if (\true === $approved) {
-                        if ($post_type) {
-                            if ($args['in_canonicals']) {
+                        if ($post_type && $slug) {
+                            if (!in_array($post_type, $this->supported_post_types)) {
+                                echo '<span class="notice-warning notice">';
+                                echo $post_type;
+                                echo ' ';
+                                echo __('not supported', 'multisite-landingpages');
+                                echo '</span>';
+                            } elseif ($args['in_canonicals']) {
                                 echo '<span class="notice-success notice">';
                                 echo $post_type;
                                 echo ' ';
