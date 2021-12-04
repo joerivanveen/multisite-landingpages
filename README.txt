@@ -1,7 +1,31 @@
-# multisite-landingpages
+=== Each Domain a Page ===
+Contributors: ruigehond
+Tags: landing page, domain, mapping, multisite, landingpages
+Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=hallo@ruigehond.nl&lc=US&item_name=Multisite+landingpages+plugin&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted
+Requires at least: 5.0
+Tested up to: 5.8
+Requires PHP: 5.6
+Stable tag: trunk
+License: GPLv3
+
 You can point a supplementary domain at your installation and have one of your subsites serve a specific landingpage for that.
 
-## Documented working (admin)
+== Description ==
+This plugin has been developed for and tested with a Wordpress Multisite hosting company in the U.S. They have agreed to release this plugin for free.
+You need some technical knowledge to set this up, it may also be that you need some specific compatibility or functionality. Please use your local programmer to adjust this plugin or contact me.
+
+= Easy =
+
+
+= Compatibility =
+The plugin is specifically compatible with:
+- WPMU domain mapping plugin (now discontinued).
+- WP Rocket caching.
+
+== Installation ==
+Put the plugin in your plugins folder and follow the below instructions. If you need help or customization contact me.
+
+= Documented working (admin) =
 The network administrator does not have any settings.
 Of course, they can ‘network activate’ or deactivate and uninstall this plugin.
 
@@ -40,18 +64,27 @@ Header set Access-Control-Allow-Origin "*"
 
 The plugin will attempt to do this and warn when failed. The lines will be clearly marked by #ruigehond011 so you can find them in your .htaccess.
 
-## Documented working (subsite)
+= Documented working (subsite) =
 Subsite administrators get a ‘settings’ page called ‘Landingpages’ once the plugin is active.
 At the top is displayed the TXT record containing the guid they must add to the DNS records for the domains they want to add. (Unless this is set to false in wp-config.)
 A domain will be added when the record is found, after that they can assign a slug, which must be of a page or a regular post type (custom post types not supported).
 The plugin will match a domain name to a slug and show the page or post of that slug then. If no match occurs, the plugin has no influence.
 If the ‘canonicals’ option is checked however the plugin will always actively rewrite links to any of the landingpage domains of the current subsite.
 
-### Note about international domainnames
+= Note about international domainnames =
 International domains, containing utf-8 characters, will be stored in punycode (ascii notation). Either automatically (when available) or they must be put in as such by the user. Upon failure a warning will be shown.
 
-### Note about deactivation
+= Note about deactivation =
 If a subsite administrator deactivates the plugin, its entries in the landingpages / domains table are removed.
 On a network deactivation the table is left in tact for the admin to prune, to conserve resources. It will be dropped on uninstall.
 On a network deactivation the options are removed for each subsite, as long as wp_is_large_network() returns false. For large networks, the admin should cleanup the relevant options. They are prefixed by ‘ruigehond011’.
 
+== Screenshots ==
+
+1. Example page reacting to a specific url
+
+2. Settings screen (1.2.9)
+
+== Changelog ==
+
+1.2.9 Public release
