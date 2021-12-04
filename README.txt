@@ -8,19 +8,20 @@ Requires PHP: 5.6
 Stable tag: trunk
 License: GPLv3
 
-You can point a supplementary domain at your installation and have one of your subsites serve a specific landingpage for that.
+Allow your subsite administrators to add specific landingpages to domains they own in a multisite environment.
 
 == Description ==
 This plugin has been developed for and tested with a Wordpress Multisite hosting company in the U.S. They have agreed to release this plugin for free.
-You need some technical knowledge to set this up, it may also be that you need some specific compatibility or functionality. Please use your local programmer to adjust this plugin or contact me.
+You may need some technical knowledge to set this up. It may also be that you need some specific compatibility or functionality, please use your local programmer to adjust this plugin or contact me.
 
 = Easy =
 
 
 = Compatibility =
 The plugin is specifically compatible with:
-- WPMU domain mapping plugin (now discontinued).
+- WPMU Domain Mapping plugin (now deprecated).
 - WP Rocket caching.
+- Cartflows (step) post type.
 
 == Installation ==
 Put the plugin in your plugins folder and follow the below instructions. If you need help or customization contact me.
@@ -67,7 +68,7 @@ The plugin will attempt to do this and warn when failed. The lines will be clear
 = Documented working (subsite) =
 Subsite administrators get a ‘settings’ page called ‘Landingpages’ once the plugin is active.
 At the top is displayed the TXT record containing the guid they must add to the DNS records for the domains they want to add. (Unless this is set to false in wp-config.)
-A domain will be added when the record is found, after that they can assign a slug, which must be of a page or a regular post type (custom post types not supported).
+A domain will be added when the record is found, after that they can assign a slug, which must be of a page or a regular post type (custom post types not supported out of the box).
 The plugin will match a domain name to a slug and show the page or post of that slug then. If no match occurs, the plugin has no influence.
 If the ‘canonicals’ option is checked however the plugin will always actively rewrite links to any of the landingpage domains of the current subsite.
 
