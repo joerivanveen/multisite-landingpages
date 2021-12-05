@@ -13,37 +13,40 @@ Allow your subsite administrators to add specific landingpages to domains they o
 == Description ==
 This plugin has been developed for and tested with a Wordpress Multisite hosting company in the U.S. They have agreed to release this plugin for free.
 You may need some technical knowledge to set this up. It may also be that you need some specific compatibility or functionality, please use your local programmer to adjust this plugin or contact me.
+This is the multisite version of my Each-domain-a-page plugin, for non-multisite environments Each-domain-a-page is recommended.
 
 = Easy =
-
+For owners of subsites it is now easy to add landingpages to their sites for different domain names. They simply type in any domain name they own, and then the slug they would like to serve for that domain.
+‘Multisite landingpages’ enforces a dns txt record proving ownership, this can be switched off (for the entire multisite).
 
 = Compatibility =
 The plugin is specifically compatible with:
 - WPMU Domain Mapping plugin (now deprecated).
 - WP Rocket caching.
 - Cartflows (step) post type.
+- Yoast SEO plugin.
 
 == Installation ==
 Put the plugin in your plugins folder and follow the below instructions. If you need help or customization contact me.
 
 = Documented working (admin) =
-The network administrator does not have any settings.
+The network administrator does not have any settings, nor do they need any.
 Of course, they can ‘network activate’ or deactivate and uninstall this plugin.
 
 The plugin uses three config settings that you can put in your wp-config file.
-define('RUIGEHOND011_TXT_RECORD_MANDATORY', true);
+`define('RUIGEHOND011_TXT_RECORD_MANDATORY', true);`
 default: true; When true domains can only be added if they contain a mandatory txt record, proving ownership.
-define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);
+`define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);`
 default: false; when true Multisite Landingpages takes into account the relevant settings in the Domain Mapping plugin (now deprecated by WPMU).
-define('RUIGEHOND011_WP_ROCKET_CACHE_DIR', '/path/to/dir/wp-content/cache/wp-rocket');
-default: not present. When present, the dir should be valid and writable. Multisite Landingpages will invalidate cache per domain when it can, and warn when it can’t.
-When not present you must invalidate the cache yourself when you’re done changing your settings.
+`define('RUIGEHOND011_WP_ROCKET_CACHE_DIR', '/path/to/dir/wp-content/cache/wp-rocket');`
+default: not present. When present, **the dir must be valid and writable**. Multisite Landingpages will invalidate cache per domain when it can, and warn when it can’t.
+When not present you must invalidate any cache yourself when you’re done changing your settings.
 
 This plugin can only work using the ‘sunrise’ drop in structure, so a site administrator must do the following:
 Copy the sunrise.php file of this plugin to the wp-content directory, or add its code to an existing sunrise.php, ensuring it does not conflict.
 NOTE: currently the sunrise of domain-mapping (WPMU) is taken and this plugin is added to ensure compatibility.
 Set the sunrise constant in wp-config.php, somewhere below the multisite constants would be appropriate:
-define('SUNRISE', true);
+`define('SUNRISE', true);`
 
 Multisite-landingpages creates a small table holding the domain names put in by subsite admins. The domain column is the primary key so queries should run fast even with many domains.
 
@@ -57,12 +60,13 @@ When ruigehond011_txt_record_mandatory = false admins cannot prove ownership, th
 
 For custom fonts to work the following code must be added to .htaccess:
 
+```
 <IfModule mod_headers.c>
 <FilesMatch "\.(eot|ttf|otf|woff)$">
 Header set Access-Control-Allow-Origin "*"
 </FilesMatch>
 </IfModule>
-
+```
 The plugin will attempt to do this and warn when failed. The lines will be clearly marked by #ruigehond011 so you can find them in your .htaccess.
 
 = Documented working (subsite) =
@@ -77,14 +81,12 @@ International domains, containing utf-8 characters, will be stored in punycode (
 
 = Note about deactivation =
 If a subsite administrator deactivates the plugin, its entries in the landingpages / domains table are removed.
-On a network deactivation the table is left in tact for the admin to prune, to conserve resources. It will be dropped on uninstall.
+On a network deactivation the table is left in the database for the admin to prune, to conserve resources. It will be dropped on uninstall.
 On a network deactivation the options are removed for each subsite, as long as wp_is_large_network() returns false. For large networks, the admin should cleanup the relevant options. They are prefixed by ‘ruigehond011’.
 
 == Screenshots ==
 
-1. Example page reacting to a specific url
-
-2. Settings screen (1.2.9)
+1. Settings screen for subsite administrators (1.2.9)
 
 == Changelog ==
 
