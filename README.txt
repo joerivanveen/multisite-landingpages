@@ -1,11 +1,11 @@
-=== Each Domain a Page ===
+=== Multisite Landingpages ===
 Contributors: ruigehond
 Tags: landing page, domain, mapping, multisite, landingpages
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=hallo@ruigehond.nl&lc=US&item_name=Multisite+landingpages+plugin&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted
 Requires at least: 5.0
 Tested up to: 5.8
 Requires PHP: 5.6
-Stable tag: trunk
+Stable tag: 1.2.9
 License: GPLv3
 
 Allow your subsite administrators to add specific landingpages to domains they own in a multisite environment.

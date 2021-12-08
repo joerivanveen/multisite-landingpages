@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Multisite Landingpages
-Plugin URI: https://github.com/joerivanveen/each-domain-a-page
+Plugin URI: https://github.com/joerivanveen/multisite-landingpages
 Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
 Version: 1.2.9
 Author: Ruige hond
@@ -206,7 +206,7 @@ class ruigehond011
      */
     public function render_title_tag()
     {
-        echo '<title>' . get_the_title() . '</title>';
+        echo '<title>' . esc_html(get_the_title()) . '</title>';
     }
 
     /**
@@ -302,7 +302,7 @@ class ruigehond011
                 echo '<br/>';
                 if ($this->txt_record_mandatory) {
                     echo \sprintf(__('Add a TXT record with value: %s', 'multisite-landingpages'),
-                        '<strong>' . $this->txt_record . '</strong>');
+                        '<strong>' . esc_html($this->txt_record) . '</strong>');
                     echo '<br/>';
                 }
                 echo __('Fill in the domain name (without protocol or irrelevant subdomains) below to add it.', 'multisite-landingpages');
@@ -366,25 +366,25 @@ class ruigehond011
                     $post_type = $args['post_type'];
                     $approved = \boolval($args['approved']);
                     echo '<input type="text" name="ruigehond011[';
-                    echo $domain;
+                    echo esc_html($domain);
                     echo ']" value="';
-                    echo $slug;
+                    echo esc_html($slug);
                     echo '"/> ';
                     // delete button
                     echo '<input type="submit" class="button" value="×" data-domain="';
-                    echo $domain;
+                    echo esc_html($domain);
                     echo '" onclick="var val = this.getAttribute(\'data-domain\');if (confirm(\'Delete \'+val+\'?\')) {var f = this.form;f[\'ruigehond011[__delete__]\'].value=val;f.submit();}else{return false;}"/> ';
                     if (\true === $approved) {
                         if ($post_type && $slug) {
                             if (!in_array($post_type, $this->supported_post_types)) {
                                 echo '<span class="notice-warning notice">';
-                                echo $post_type;
+                                echo esc_html($post_type);
                                 echo ' ';
                                 echo __('not supported', 'multisite-landingpages');
                                 echo '</span>';
                             } elseif ($args['in_canonicals']) {
                                 echo '<span class="notice-success notice">';
-                                echo $post_type;
+                                echo esc_html($post_type);
                                 echo ' ';
                                 if ($args['use_canonical']) {
                                     echo __('loaded in canonicals', 'multisite-landingpages');
@@ -449,13 +449,13 @@ class ruigehond011
                     $checked = \boolval((isset($options[$setting_name])) ? $options[$setting_name] : false);
                     // make checkbox that transmits 1 or 0, depending on status
                     echo '<label><input type="hidden" name="ruigehond011[';
-                    echo $setting_name;
+                    echo esc_html($setting_name);
                     echo ']" value="';
                     echo((true === $checked) ? '1' : '0');
                     echo '"><input type="checkbox"';
                     if (true === $checked) echo ' checked="checked"';
                     echo ' onclick="this.previousSibling.value=1-this.previousSibling.value"/>';
-                    echo $args['label_for'];
+                    echo esc_html($args['label_for']);
                     echo '</label><br/>';
                 },
                 'ruigehond011',
@@ -478,7 +478,7 @@ class ruigehond011
                     echo '</p></div>';
                 } else {
                     echo '<div class="notice notice-warning"><p>';
-                    echo $warning;
+                    echo esc_html($warning);
                     echo '</p></div>';
                 }
             }
@@ -605,7 +605,7 @@ class ruigehond011
         }
         $domains = array();
         foreach ($rows as $index => $row) {
-            // replacement is for multisite in directory mode, UNCONFIRMED TODO need to find a test site or info for it
+            // replacement is for multisite in directory mode, UNCONFIRMED TODO need to find a test site for it
             $domains[\str_replace('/', '-', $row->domain)] = \true;
         }
         $rows = \null;
@@ -647,7 +647,9 @@ class ruigehond011
         if (!current_user_can('manage_options')) {
             return;
         }
-        echo '<div class="wrap"><h1>' . esc_html(get_admin_page_title()) . '</h1><form action="options.php" method="post">';
+        echo '<div class="wrap"><h1>';
+        echo esc_html(get_admin_page_title());
+        echo '</h1><form action="options.php" method="post">';
         // output security fields for the registered setting
         settings_fields('ruigehond011');
         // output setting sections and their fields
@@ -794,8 +796,8 @@ class ruigehond011
 
 function ruigehond011_uninstall()
 {
-    $hond = new ruigehond011();
-    $hond->network_uninstall();
+    $wphf = new ruigehond011();
+    $wphf->network_uninstall();
 }
 
 function ruigehond011_display_warning()
@@ -803,7 +805,7 @@ function ruigehond011_display_warning()
     /* Check warning, if available display it */
     if (($warning = \get_transient('ruigehond011_warning'))) {
         echo '<div class="notice notice-warning is-dismissible"><p>';
-        echo $warning;
+        echo esc_html($warning);
         echo '</p></div>';
         /* Delete warning, only display this notice once. */
         \delete_transient('ruigehond011_warning');

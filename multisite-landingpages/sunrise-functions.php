@@ -1,10 +1,10 @@
 <?php
 
-namespace ruigehond011;
+//namespace ruigehond011; <- prefixed the function as per wordpress feedback
 // config params
 if (!Defined('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT')) define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);
 // call the function that selects blog based on the domain
-sunrise();
+ruigehond011_sunrise();
 // intro to multisite setup sunrise stuff:
 // https://wordpress.stackexchange.com/a/126176
 
@@ -15,7 +15,7 @@ sunrise();
  * @since 0.1.0
  * @since 1.2.0 the flag RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT makes this sunrise use the mapped domain when appropriate
  */
-function sunrise()
+function ruigehond011_sunrise()
 {
     global $wpdb;
     // get the domain

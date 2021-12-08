@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ruigehond011\n"
-"POT-Creation-Date: 2021-02-22 12:53+0100\n"
+"POT-Creation-Date: 2021-12-05 20:41+0100\n"
 "PO-Revision-Date: 2021-02-08 09:41+0100\n"
 "Last-Translator: \n"
 "Language-Team: ruigehond\n"
@@ -17,155 +17,155 @@ msgstr ""
 "X-Poedit-SearchPath-0: .\n"
 "X-Poedit-SearchPathExcluded-0: languages\n"
 
-#: multisite-landingpages.php:5 | description
-msgid "Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes."
-msgstr ""
-
-#: multisite-landingpages.php:55
+#: multisite-landingpages.php:56
 msgid "WP Rocket cache directory is not writable or doesn’t exist"
 msgstr ""
 
-#: multisite-landingpages.php:297
+#: multisite-landingpages.php:298
 msgid "New landingpage"
 msgstr ""
 
-#: multisite-landingpages.php:300
+#: multisite-landingpages.php:301
 msgid "In the DNS settings of your desired domain point the A and / or AAAA records at this WordPress installation."
 msgstr ""
 
-#: multisite-landingpages.php:303
+#: multisite-landingpages.php:304
 #, php-format
 msgid "Add a TXT record with value: %s"
 msgstr ""
 
-#: multisite-landingpages.php:307
+#: multisite-landingpages.php:308
 msgid "Fill in the domain name (without protocol or irrelevant subdomains) below to add it."
 msgstr ""
 
-#: multisite-landingpages.php:309
+#: multisite-landingpages.php:310
 msgid "The domain must be reachable from this WordPress installation, allow some time for the DNS settings to propagate."
 msgstr ""
 
-#: multisite-landingpages.php:321
+#: multisite-landingpages.php:322
 msgid "Add"
 msgstr ""
 
-#: multisite-landingpages.php:333
+#: multisite-landingpages.php:334
 msgid "Domains and slugs"
 msgstr ""
 
-#: multisite-landingpages.php:336
+#: multisite-landingpages.php:337
 msgid "For each domain, you can assign a ‘URL Slug’ from a page or regular post."
 msgstr ""
 
-#: multisite-landingpages.php:338
+#: multisite-landingpages.php:339
 msgid "When someone visits your site using the domain, they will see the assigned page or regular post."
 msgstr ""
 
-#: multisite-landingpages.php:340
+#: multisite-landingpages.php:341
 msgid "Custom post types are not yet supported."
 msgstr ""
 
-#: multisite-landingpages.php:342
+#: multisite-landingpages.php:343
 msgid "This includes the default shop page."
 msgstr ""
 
-#: multisite-landingpages.php:344
+#: multisite-landingpages.php:345
 msgid "The rest of your site keeps working as usual."
 msgstr ""
 
 #: multisite-landingpages.php:383
+msgid "not supported"
+msgstr ""
+
+#: multisite-landingpages.php:390
 msgid "loaded in canonicals"
 msgstr ""
 
-#: multisite-landingpages.php:385
+#: multisite-landingpages.php:392
 msgid "serving"
 msgstr ""
 
-#: multisite-landingpages.php:391
+#: multisite-landingpages.php:398
 msgid "slug not found"
 msgstr ""
 
-#: multisite-landingpages.php:396
+#: multisite-landingpages.php:403
 msgid "TXT record could not be verified"
 msgstr ""
 
-#: multisite-landingpages.php:416
+#: multisite-landingpages.php:423
 msgid "General options"
 msgstr ""
 
-#: multisite-landingpages.php:419
+#: multisite-landingpages.php:426
 msgid "If you want your landing pages to correctly identify with the domain, you should activate the canonicals option below."
 msgstr ""
 
-#: multisite-landingpages.php:421
+#: multisite-landingpages.php:428
 msgid "This makes the plugin slightly slower, it will however return the domain in most cases."
 msgstr ""
 
-#: multisite-landingpages.php:423
+#: multisite-landingpages.php:430
 msgid ""
 "SEO plugins like Yoast may or may not interfere with this. If they do, you can probably set the desired canonical for your landing "
 "page there."
 msgstr ""
 
-#: multisite-landingpages.php:430
+#: multisite-landingpages.php:437
 msgid "Use domains as canonical url"
 msgstr ""
 
-#: multisite-landingpages.php:431
+#: multisite-landingpages.php:438
 msgid "Canonicals must include www (incompatible with subdomains)"
 msgstr ""
 
-#: multisite-landingpages.php:432
+#: multisite-landingpages.php:439
 msgid "All domains have an SSL certificate installed"
 msgstr ""
 
-#: multisite-landingpages.php:433
+#: multisite-landingpages.php:440
 msgid "Use only post title as document title"
 msgstr ""
 
-#: multisite-landingpages.php:470
+#: multisite-landingpages.php:477
 msgid "Warning status cleared."
 msgstr ""
 
-#: multisite-landingpages.php:519
+#: multisite-landingpages.php:526
 #, php-format
 msgid "Domain %s already in use"
 msgstr ""
 
-#: multisite-landingpages.php:537 multisite-landingpages.php:540
+#: multisite-landingpages.php:544 multisite-landingpages.php:547
 msgid "Please add the required TXT record, note that DNS propagation can take several hours"
 msgstr ""
 
-#: multisite-landingpages.php:542
+#: multisite-landingpages.php:549
 msgid "Please note: international domainnames must be put in using ascii notation (punycode)"
 msgstr ""
 
-#: multisite-landingpages.php:609
+#: multisite-landingpages.php:616
 msgid "Cleared cache"
 msgstr ""
 
-#: multisite-landingpages.php:649
+#: multisite-landingpages.php:656
 msgid "Save settings"
 msgstr ""
 
-#: multisite-landingpages.php:656
+#: multisite-landingpages.php:663
 msgid "Settings"
 msgstr ""
 
-#: multisite-landingpages.php:678
+#: multisite-landingpages.php:685
 msgid "Multisite-landingpages can only be activated on a multisite install"
 msgstr ""
 
-#: multisite-landingpages.php:693
+#: multisite-landingpages.php:700
 msgid "In order for webfonts to work on alternative domains you need to have the following lines in your .htaccess"
 msgstr ""
 
-#: multisite-landingpages.php:695
+#: multisite-landingpages.php:702
 msgid "In addition you need to have mod_headers available."
 msgstr ""
 
-#: multisite-landingpages.php:733
+#: multisite-landingpages.php:740
 #, php-format
 msgid "multisite-landingpages updated database to %s"
 msgstr ""
