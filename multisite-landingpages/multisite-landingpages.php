@@ -2,7 +2,7 @@
 /*
 Plugin Name: Multisite Landingpages
 Plugin URI: https://github.com/joerivanveen/multisite-landingpages
-Description: Multisite version of ‘Each domain a page’. Assign the slug of a landingpage you created to a domain you own for SEO purposes.
+Description: Multisite version of ‘Each domain a page’. Assign the slug of a landing page you created to a domain you own for SEO purposes.
 Version: 1.2.9
 Author: Ruige hond
 Author URI: https://ruigehond.nl
