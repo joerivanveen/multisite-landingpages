@@ -59,8 +59,8 @@ function ruigehond011_sunrise()
         // set the HTTP_HOST to the domain of this blog you want, let WordPress handle it further
         // @since 1.2.0 use the mapped domain if relevant
         if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT
-            and (false === ($blog_option = \get_blog_option($row->blog_id, 'domainmap_frontend_mapping'))
-                or 'mapped' === $blog_option) // 'mapped' is the default, so false (when never set) means 'mapped'
+            and ('mapped' === ($blog_option = \get_blog_option($row->blog_id, 'domainmap_frontend_mapping'))
+                or \false === $blog_option) // 'mapped' is the default, so false (when never set) means 'mapped'
             and isset($row->mapped_domain)
         ) {
             $_SERVER['HTTP_HOST'] = $row->mapped_domain;
