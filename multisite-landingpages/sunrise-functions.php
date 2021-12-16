@@ -39,7 +39,7 @@ function ruigehond011_sunrise()
         // @since 1.2.5 emit notice when appropriate
         if ($wpdb->last_error) {
             \trigger_error(\sprintf('Sunrise query error, maybe your ‘%s’ constant is wrong',
-                    'RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT'));
+                'RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT'));
         }
     } else {
         $rows = $wpdb->get_results(
@@ -59,8 +59,10 @@ function ruigehond011_sunrise()
         // set the HTTP_HOST to the domain of this blog you want, let WordPress handle it further
         // @since 1.2.0 use the mapped domain if relevant
         if (\true === RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT
-            and \get_blog_option($row->blog_id, 'domainmap_frontend_mapping') === 'mapped'
-            and isset($row->mapped_domain)) {
+            and (false === ($blog_option = \get_blog_option($row->blog_id, 'domainmap_frontend_mapping'))
+                or 'mapped' === $blog_option) // 'mapped' is the default, so false (when never set) means 'mapped'
+            and isset($row->mapped_domain)
+        ) {
             $_SERVER['HTTP_HOST'] = $row->mapped_domain;
         } else {
             $_SERVER['HTTP_HOST'] = $row->multisite_domain;
