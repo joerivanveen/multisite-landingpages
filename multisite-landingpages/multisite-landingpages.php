@@ -334,15 +334,15 @@ class ruigehond011
             __('Domains and slugs', 'multisite-landingpages'),
             function () {
                 echo '<p>';
-                echo __('For each domain, you can assign a ‘URL Slug’ from a page or regular post.', 'multisite-landingpages');
+                echo __('For each domain, you can assign a ‘URL Slug’ from a page or blog post.', 'multisite-landingpages');
                 echo ' ';
-                echo __('When someone visits your site using the domain, they will see the assigned page or regular post.', 'multisite-landingpages');
-                echo ' <em>';
-                echo __('Custom post types are not yet supported.', 'multisite-landingpages');
+                echo __('If your landing page is mysite.multisite.com/leads, you would add ‘leads’ in the box below.', 'multisite-landingpages');
                 echo ' ';
-                echo __('This includes the default shop page.', 'multisite-landingpages');
-                echo '</em><br/><strong>';
+                echo __('When someone visits your site using the domain, they will see the assigned page or blog post.', 'multisite-landingpages');
+                echo '<br/><strong>';
                 echo __('The rest of your site keeps working as usual.', 'multisite-landingpages');
+                echo ' ';
+                echo __('Do not add a domain here if it has already been added as a main website domain.', 'multisite-landingpages');
                 echo '</strong></p><input type="hidden" name="ruigehond011[__delete__]"/>';
             },
             'ruigehond011'
@@ -423,25 +423,21 @@ class ruigehond011
             __('General options', 'multisite-landingpages'), // title
             function () {
                 echo '<p>';
-                echo __('If you want your landing pages to correctly identify with the domain, you should activate the canonicals option below.', 'multisite-landingpages');
-                echo ' ';
-                echo __('This makes the plugin slightly slower, it will however return the domain in most cases.', 'multisite-landingpages');
-                echo ' ';
-                echo __('SEO plugins like Yoast may or may not interfere with this. If they do, you can probably set the desired canonical for your landing page there.', 'multisite-landingpages');
+                echo __('Activating the domain name as canonical tells search engines to use the domain as the main url for the pages, preventing duplicate search engine content.', 'multisite-landingpages');
                 echo '</p>';
             }, //callback
             'ruigehond011' // page
         );
         // add the checkboxes
         foreach (array(
-                     'use_canonical' => __('Use domains as canonical url', 'multisite-landingpages'),
+                     'use_canonical' => __('Set domains as the canonical url', 'multisite-landingpages'),
                      'use_www' => __('Canonicals must include www (incompatible with subdomains)', 'multisite-landingpages'),
-                     'use_ssl' => __('All domains have an SSL certificate installed', 'multisite-landingpages'),
-                     'remove_sitename' => __('Use only post title as document title', 'multisite-landingpages'),
+                     'use_ssl' => __('Assumes https for all domains', 'multisite-landingpages'),
+                     'remove_sitename' => __('Remove the website site name from landing page titles', 'multisite-landingpages'),
                  ) as $setting_name => $short_text) {
             add_settings_field(
                 'ruigehond011_' . $setting_name,
-                $setting_name, // title
+                ucfirst(str_replace('_', ' ', $setting_name)), // title
                 function ($args) {
                     $setting_name = $args['option_name'];
                     $options = $args['options'];
