@@ -3,7 +3,7 @@ Contributors: ruigehond
 Tags: landing page, domain, mapping, multisite, landingpages
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=hallo@ruigehond.nl&lc=US&item_name=Multisite+landingpages+plugin&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted
 Requires at least: 5.0
-Tested up to: 5.8
+Tested up to: 6.0
 Requires PHP: 5.6
 Stable tag: 1.2.9
 License: GPLv3
@@ -60,13 +60,14 @@ When ruigehond011_txt_record_mandatory = false admins cannot prove ownership, th
 
 For custom fonts to work the following code must be added to .htaccess:
 
-```
-<IfModule mod_headers.c>
-<FilesMatch "\.(eot|ttf|otf|woff)$">
-Header set Access-Control-Allow-Origin "*"
-</FilesMatch>
-</IfModule>
-```
+    &#35; BEGIN ruigehond011
+    <IfModule mod_headers.c>
+    <FilesMatch ".(eot|ttf|otf|woff)$">
+    Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+    </IfModule>
+    &#35; END ruigehond011
+
 The plugin will attempt to do this and warn when failed. The lines will be clearly marked by #ruigehond011 so you can find them in your .htaccess.
 
 = Documented working (subsite) =
