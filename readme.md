@@ -4,12 +4,12 @@ Serves a specific page or post from WordPress depending on the domain used to ac
 
 ## Description
 
-This plugin has been developed for and tested with a Wordpress Multisite hosting company in the U.S. They have agreed to release this plugin for free.
+This plugin has been developed for and tested with a WordPress Multisite hosting company in the U.S. They have agreed to release this plugin for free.
 You may need some technical knowledge to set this up. It may also be that you need some specific compatibility or functionality, please use your local programmer to adjust this plugin or contact me.
 This is the multisite version of my Each-domain-a-page plugin, for non-multisite environments Each-domain-a-page is recommended.
 
 # Easy
-For owners of subsites it is now easy to add landingpages to their sites for different domain names. They simply type in any domain name they own, and then the slug they would like to serve for that domain.
+For owners of subsites it is now easy to add landing pages to their sites for different domain names. They simply type in any domain name they own, and then the slug they would like to serve for that domain.
 ‘Multisite landingpages’ enforces a dns txt record proving ownership, this can be switched off (for the entire multisite).
 
 # Compatibility
@@ -27,10 +27,13 @@ The network administrator does not have any settings, nor do they need any.
 Of course, they can ‘network activate’ or deactivate and uninstall this plugin.
 
 The plugin uses three config settings that you can put in your wp-config file.
+
 `define('RUIGEHOND011_TXT_RECORD_MANDATORY', true);`
 default: true; When true domains can only be added if they contain a mandatory txt record, proving ownership.
+
 `define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);`
 default: false; when true Multisite Landingpages takes into account the relevant settings in the Domain Mapping plugin (now deprecated by WPMU).
+
 `define('RUIGEHOND011_WP_ROCKET_CACHE_DIR', '/path/to/dir/wp-content/cache/wp-rocket');`
 default: not present. When present, **the dir must be valid and writable**. Multisite Landingpages will invalidate cache per domain when it can, and warn when it can’t.
 When not present you must invalidate any cache yourself when you’re done changing your settings.
@@ -43,13 +46,13 @@ Set the sunrise constant in wp-config.php, somewhere below the multisite constan
 
 Multisite-landingpages creates a small table holding the domain names put in by subsite admins. The domain column is the primary key so queries should run fast even with many domains.
 
-The following is only true if the global config ruigehond011_txt_record_mandatory = true:
+The following is only true if the global config `ruigehond011_txt_record_mandatory = true`:
 Subsite administrators must put a TXT record in their DNS for any domain they want to add to prove they own it. This TXT record is unique for each subsite and installation (it uses the uuid4 functionality) and displayed to the administrator on the settings page.
 If the TXT record is not present the domain will not be added.
 When the TXT record is no longer found, a warning will be displayed on the settings page next to the entry. The landing page will keep working however as long as the domain is correctly pointed at the installation.
 When someone else adds the domain (while proving ownership), the domain is assigned to that subsite, and not visible anymore to the old subsite.
 
-When ruigehond011_txt_record_mandatory = false admins cannot prove ownership, therefore the transfer of a domain as described in the above paragraph is NOT possible. Domains that are in the table cannot be added by another subsite.
+When `ruigehond011_txt_record_mandatory = false` admins cannot prove ownership, therefore the transfer of a domain as described in the above paragraph is NOT possible. Domains that are in the table cannot be added by another subsite.
 
 For custom fonts to work the following code must be added to .htaccess:
 
@@ -81,14 +84,7 @@ On a network deactivation the options are removed for each subsite, as long as w
 
 To work alongside the (now deprecated) Domain Mapping plugin by WPMU and the WP-Rocket caching plugin, Multisite-landingpages has a few methods that influence those plugins.
 If you want to test the txt record check (default true) you need to prepare at least one domain with the correct text record. The string you need is displayed on the settings page. If you deactivate and reactivate the plugin, the mandatory string changes, so don’t do that during testing (or on a production machine). However, already added domains will keep working, the check is only performed upon adding.
-Note: multisite-landingpages (like its single site version each-domain-a-page) shows only 1 page (or post) on a domain, and hence it assumes whenever that domain is visited, that one page / post is requested, as such it ignores the rest of the uri. Combined with domain mapping this can lead to a ‘bug’: if you set the same domain as Landingpage as you use elsewhere or even the main domain, WordPress can display content that is fetched based on the uri that is DIFFERENT from the slug filled in with the domain, this will make your title and canonical wrong. This is actually not a bug, but an assumption by multisite-landingpages and you should NOT put a domain as landingpage that you use elsewhere in WordPress, WordPress or the appropriate plugin where you use that domain has its own functions to deal with that.
-The plugin uses three config settings that you can put in your wp-config file.
-
-`define('RUIGEHOND011_TXT_RECORD_MANDATORY', true);` default: true; When true domains can only be added if they contain a mandatory txt record, proving ownership.
-
-`define('RUIGEHOND011_DOMAIN_MAPPING_IS_PRESENT', false);` default: false; when true Multisite Landingpages takes into account the relevant settings in the Domain Mapping plugin (now deprecated by WPMU).
-
-`define('RUIGEHOND011_WP_ROCKET_CACHE_DIR', '/path/to/dir/wp-content/cache/wp-rocket');` default: not present. When present, the dir should be valid and writable. Multisite Landingpages will invalidate cache per domain when it can, and warn when it can’t. When not present you must invalidate the cache yourself when you’re done changing your settings.
+Note: multisite-landingpages shows only 1 page (or post) on a domain, and hence it assumes whenever that domain is visited, that one page / post is requested, as such it ignores the rest of the uri. Combined with domain mapping this can lead to a ‘bug’: if you set the same domain as Landingpage as you use elsewhere or even the main domain, WordPress can display content that is fetched based on the uri that is DIFFERENT from the slug filled in with the domain, this will make your title and canonical wrong. This is actually not a bug, but an assumption by multisite-landingpages and you should NOT put a domain as landingpage that you use elsewhere in WordPress, WordPress or the appropriate plugin where you use that domain has its own functions to deal with that.
 
 1. Set txt record mandatory to true,
    1. Add a random domain (e.g. altavista.com) on the settings page, the plugin will display a message that the domain cannot be added.
