@@ -269,7 +269,7 @@ class ruigehond011
         $htaccess = \get_home_path() . ".htaccess";
         if (\file_exists($htaccess)) {
             $str = \file_get_contents($htaccess);
-            if ($start = \strpos($str, '<FilesMatch "\.(eot|ttf|otf|woff)$">')) {
+            if ($start = \strpos($str, '<FilesMatch "\.(eot|ttf|otf|woff|woff2)$">')) {
                 if (\strpos($str, 'Header set Access-Control-Allow-Origin "*"', $start)) {
                     return true;
                 }
@@ -686,7 +686,7 @@ class ruigehond011
             $htaccess = get_home_path() . ".htaccess";
             $lines = array();
             $lines[] = '<IfModule mod_headers.c>';
-            $lines[] = '<FilesMatch "\.(eot|ttf|otf|woff)$">';
+            $lines[] = '<FilesMatch "\.(eot|ttf|otf|woff|woff2)$">';
             $lines[] = 'Header set Access-Control-Allow-Origin "*"';
             $lines[] = '</FilesMatch>';
             $lines[] = '</IfModule>';
